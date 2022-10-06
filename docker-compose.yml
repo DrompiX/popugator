@@ -1,5 +1,10 @@
 version: "3.9"
 
+x-db-variables: &db-variables
+  POSTGRES_HOST: pgdb
+  POSTGRES_PASSWORD: password12345
+  POSTGRES_USER: postgres
+
 x-default-config: &default-service-config
   platform: linux/arm64
   networks:
@@ -7,7 +12,7 @@ x-default-config: &default-service-config
   logging:
     options:
       max-size: 50m
-  restart: 'no'
+  restart: "no"
 
 services:
   gateway:
@@ -15,10 +20,23 @@ services:
     container_name: gateway
     hostname: gateway
     build:
-      context: gateway
+      dockerfile: gateway/Dockerfile
     ports:
       - 8080:8080
     command: uvicorn gateway.app.asgi:app --host 0.0.0.0 --port 8080 --workers 1
+    environment:
+      <<: *db-variables
+      POSTGRES_DB: users
+
+  db:
+    <<: *default-service-config
+    container_name: db
+    hostname: db
+    image: postgres:13
+    ports:
+      - 5432:5432
+    environment:
+      <<: *db-variables
 
 networks:
   local_network:

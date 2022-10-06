@@ -6,15 +6,15 @@ ENV PYTHONUNBUFFERED 1
 RUN apt-get update && apt-get -y dist-upgrade
 RUN pip3 install pipenv==2022.7.4
 
-COPY Pipfile .
-COPY Pipfile.lock .
+COPY gateway/Pipfile .
+COPY gateway/Pipfile.lock .
 
 RUN pipenv install --deploy --clear --system --ignore-pipfile;
 
 # Transfer code
 WORKDIR /app
 
-COPY docker-entrypoint.sh .
-COPY app gateway/app
+COPY gateway/docker-entrypoint.sh .
+COPY gateway/app gateway/app
 
 ENTRYPOINT [ "/app/docker-entrypoint.sh" ]
