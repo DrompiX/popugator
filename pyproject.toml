@@ -1,0 +1,6 @@
+[tool.black]
+line-length = 120
+target-version = ['py310']
+# Black skips changing single quotes to double ones
+skip-string-normalization = true
+verbose = true

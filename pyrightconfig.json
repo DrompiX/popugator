@@ -1,0 +1,13 @@
+{
+    "exclude": [
+        "**/__pycache__",
+        ".git",
+        ".venv*",
+        ".vscode"
+    ],
+    "typeCheckingMode": "strict",
+    "reportPrivateUsage": "warning",
+    "reportUnknownVariableType": "information",
+    "reportUnknownMemberType": "none",
+    "reportMissingTypeStubs": "information"
+}
