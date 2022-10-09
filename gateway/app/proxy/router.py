@@ -35,15 +35,7 @@ async def proxy_request(
     auth_user: User = Depends(do_auth),
     client: httpx.AsyncClient = Depends(get_redirector),
 ) -> Response:
-    redirect_to = redirect_config.get(resource)
-    if redirect_to is None:
-        raise HTTPException(status_code=404, detail=f'Redirect for resource {resource} not found')
-
-    resourse_path = path.lstrip('/') if path else ''
-    proxy_path = f'http://{redirect_to}/{resourse_path}'.rstrip('/')
-
-    logger.warning('Got proxy path {} and user {!r}', proxy_path, auth_user)
-
+    proxy_path = make_proxy_path(resource, path)
     try:
         proxy_response = await client.request(
             method=request.method,
@@ -61,3 +53,12 @@ async def proxy_request(
     except Exception as e:
         logger.exception(e)
         raise HTTPException(status_code=500, detail='Unexpected error during proxying')
+
+
+def make_proxy_path(resource: str, path: Optional[str]) -> str:
+    redirect_to = redirect_config.get(resource)
+    if redirect_to is None:
+        raise HTTPException(status_code=404, detail=f'Redirect for resource {resource} not found')
+
+    resourse_path = path.lstrip('/').rstrip('/') if path else ''
+    return f'http://{redirect_to}/{resourse_path}'
