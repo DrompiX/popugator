@@ -1,19 +1,19 @@
-from fastapi import Depends, Security, HTTPException
+from fastapi import Request, Security, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_500_INTERNAL_SERVER_ERROR, HTTP_403_FORBIDDEN
 
 from users.models import User
 from users.repo import UserNotFound, UserRepo
-from users.router import get_repo
 
 bearer_security = HTTPBearer(scheme_name='Bearer auth', auto_error=False)
 
 
 async def do_auth(
+    request: Request,
     bearer_data: HTTPAuthorizationCredentials = Security(bearer_security),
-    users_repo: UserRepo = Depends(get_repo),
 ) -> User:
+    users_repo: UserRepo = request.app.state.users_repo
     if bearer_data is None:
         raise HTTPException(HTTP_401_UNAUTHORIZED, detail='Auth info was not specified')
 

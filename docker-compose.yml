@@ -25,6 +25,7 @@ services:
       - 8080:8080
     depends_on:
       - db
+      - kafka-1
     environment:
       <<: *db-variables
       POSTGRES_DB: users
@@ -38,6 +39,50 @@ services:
       - 5432:5432
     environment:
       <<: *db-variables
+
+  ################
+  # Kafka services
+
+  kafka-ui:
+    <<: *default-service-config
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - 8090:8080
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka-1:9092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+      - KAFKA_CLUSTERS_0_LOGGING_LEVEL_ROOT=INFO
+
+  zookeeper:
+    <<: *default-service-config
+    container_name: zookeeper
+    image: zookeeper
+    ports:
+      - 2181:2181
+
+  kafka-1:
+    <<: *default-service-config
+    container_name: kafka-1
+    hostname: kafka1
+    image: wurstmeister/kafka
+    ports:
+      - 9095:9094
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # - ./kafka_data/1:/kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-1:9092,OUTSIDE://localhost:9095
+      KAFKA_LISTENERS: INTERNAL://kafka-1:9092,OUTSIDE://kafka-1:9094
+      KAFKA_LOG_DIRS: /kafka/logs
+      KAFKA_offsets_topic_replication_factor: 1
 
 networks:
   local_network:

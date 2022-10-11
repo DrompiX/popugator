@@ -1,7 +1,7 @@
 from enum import Enum
 from pydantic import BaseModel, Field
 
-from utils import generate_uuid
+from common.utils import generate_uuid
 
 
 class SystemRole(str, Enum):

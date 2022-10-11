@@ -3,7 +3,9 @@ from typing import Callable, Coroutine
 
 import httpx
 from fastapi import FastAPI
+from kafka import KafkaProducer
 from loguru import logger
+from common.message_bus.kafka import make_mb_producer
 from users.repo import FakeUserRepo
 
 from users.router import router as users_router
@@ -18,6 +20,9 @@ def preconfigure(app: FastAPI) -> Callable[[], Coroutine[None, None, None]]:
         logger.info('Configuring service...')
         app.state.user_repo = FakeUserRepo()
         app.state.proxy_client = httpx.AsyncClient(follow_redirects=True)
+        kafka_producer = KafkaProducer(bootstrap_servers=['localhost:9095'])
+        app.state.user_stream_producer = make_mb_producer(kafka_producer, topic='user-streaming', sync=True)
+        logger.info('Done with configuration')
 
     return async_launch
 

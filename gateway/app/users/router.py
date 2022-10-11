@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request
 from loguru import logger
+from common.message_bus.protocols import MBProducer
 
 from users.api_models import APIError, CreateUserRequest, CreateUserResponse
 from users.models import User
@@ -16,16 +17,15 @@ router = APIRouter(
 )
 
 
-def get_repo(r: Request) -> UserRepo:
-    return r.app.state.user_repo
-
-
 @router.post('/', response_model=CreateUserResponse)
-async def create_user(req: CreateUserRequest, repo: UserRepo = Depends(get_repo)):
+async def create_user(request: Request, req: CreateUserRequest):
+    repo: UserRepo = request.app.state.user_repo
+    produce_func: MBProducer = request.app.state.user_stream_producer
+
     logger.info('Creating user with name {} and role {}', req.username, req.role)
     user = User(username=req.username, role=req.role)
     try:
-        await services.create_user(repo, user)
+        await services.create_user(repo, produce_func, user)
     except UserAlreadyExists as err:
         raise HTTPException(status_code=404, detail=str(err))
     except Exception as err:
@@ -36,7 +36,8 @@ async def create_user(req: CreateUserRequest, repo: UserRepo = Depends(get_repo)
 
 
 @router.get('/{user_id}', response_model=User)
-async def get_user(user_id: str, repo: UserRepo = Depends(get_repo)):
+async def get_user(request: Request, user_id: str):
+    repo: UserRepo = request.app.state.user_repo
     try:
         return await services.get_user(repo, username=user_id)
     except UserNotFound as err:
