@@ -1,5 +1,5 @@
 from common.events.base import Event
-from common.events.users import UserCreated
+from common.events.cud.users import UserCreated
 from common.message_bus.protocols import MBProducer
 from users.models import User
 from users.repo import UserRepo
