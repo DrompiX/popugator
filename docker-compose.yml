@@ -34,7 +34,8 @@ services:
     <<: *default-service-config
     container_name: db
     hostname: db
-    image: postgres:13
+    build:
+      context: db
     ports:
       - 5432:5432
     environment:

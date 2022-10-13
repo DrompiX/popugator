@@ -19,7 +19,7 @@ async def handle_user_created(uow: TaskmanUoW, event: UserCreated) -> None:
         logger.info('Created new user {!r} from cud event', new_user)
 
 
-def launch(uow: TaskmanUoW):
+def poll_events(uow: TaskmanUoW):
     loop = asyncio.new_event_loop()
     topics = {'user-streaming'}
     consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'])
@@ -50,7 +50,7 @@ def launch(uow: TaskmanUoW):
 if __name__ == '__main__':
     try:
         uow = FakeUoW()
-        launch(uow)
+        poll_events(uow)
     except KeyboardInterrupt:
         logger.info('Shutting down...')
         exit(1)

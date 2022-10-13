@@ -22,7 +22,7 @@ def preconfigure(app: FastAPI) -> Any:
         kafka_producer = KafkaProducer(bootstrap_servers=['localhost:9095'], linger_ms=2)
         app.state.tasks_cud = make_mb_producer(kafka_producer, topic='task-streaming', sync=False)
         app.state.taskman_be = make_mb_producer(kafka_producer, topic='taskman', sync=False)
-        app.state.listener = Thread(target=listener.launch, args=(app.state.uow,), daemon=True)
+        app.state.listener = Thread(target=listener.poll_events, args=(app.state.uow,), daemon=True)
         app.state.listener.start()
         logger.info('Done with configuration')
 
