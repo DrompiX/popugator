@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from users.models import SystemRole
+from gateway.users.models import SystemRole
 
 
 class CreateUserRequest(BaseModel):

@@ -3,8 +3,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_500_INTERNAL_SERVER_ERROR, HTTP_403_FORBIDDEN
 
-from users.models import User
-from users.repo import UserNotFound, UserRepo
+from gateway.users.models import User
+from gateway.users.repo import UserNotFound, UserRepo
 
 bearer_security = HTTPBearer(scheme_name='Bearer auth', auto_error=False)
 

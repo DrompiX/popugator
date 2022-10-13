@@ -23,8 +23,9 @@ def launch(uow: TaskmanUoW):
     loop = asyncio.new_event_loop()
     topics = {'user-streaming'}
     consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'])
-    msg: ConsumerRecord
+
     logger.info('Start listening for events on topics {}', topics)
+    msg: ConsumerRecord
     for msg in consumer:
         logger.info('Received new message: {}', msg)
         try:

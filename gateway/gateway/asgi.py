@@ -5,11 +5,11 @@ import httpx
 from fastapi import FastAPI
 from kafka import KafkaProducer
 from loguru import logger
-from common.message_bus.kafka import make_mb_producer
-from users.repo import FakeUserRepo
 
-from users.router import router as users_router
-from proxy.router import router as proxy_router
+from common.message_bus.kafka import make_mb_producer
+from gateway.api.routers.users import router as users_router
+from gateway.api.routers.proxy import router as proxy_router
+from gateway.users.repo import FakeUserRepo
 
 logger.remove()
 logger.add(sink=sys.stdout, level='INFO', backtrace=False, colorize=True)

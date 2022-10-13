@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, Request
 from loguru import logger
-from common.message_bus.protocols import MBProducer
 
-from users.api_models import APIError, CreateUserRequest, CreateUserResponse
-from users.models import User
-from users.repo import UserAlreadyExists, UserNotFound, UserRepo
-from users import services
+from common.message_bus.protocols import MBProducer
+from gateway.api.models import APIError, CreateUserRequest, CreateUserResponse
+from gateway.users import services
+from gateway.users.models import User
+from gateway.users.repo import UserAlreadyExists, UserNotFound, UserRepo
 
 router = APIRouter(
     prefix='/users',

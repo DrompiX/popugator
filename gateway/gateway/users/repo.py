@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from users.models import User
+from gateway.users.models import User
 
 
 class UserAlreadyExists(Exception):

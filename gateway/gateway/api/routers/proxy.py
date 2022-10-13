@@ -4,8 +4,8 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request, Depends, Response
 from loguru import logger
 
-from auth import do_auth
-from users.models import User
+from gateway.auth import do_auth
+from gateway.users.models import User
 
 
 router = APIRouter()
