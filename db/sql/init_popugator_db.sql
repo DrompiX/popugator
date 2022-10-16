@@ -28,6 +28,7 @@ CREATE TYPE TASK_STATUS AS ENUM ('open', 'done');
 CREATE TABLE tasks (
     id            SERIAL PRIMARY KEY,
     public_id     TEXT NOT NULL UNIQUE,
+    assignee_id   TEXT NOT NULL,
     description   TEXT NOT NULL,
     status        TASK_STATUS
 );

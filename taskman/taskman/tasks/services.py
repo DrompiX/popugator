@@ -42,9 +42,9 @@ async def add_task(
     task_added = Event(
         event_name='TaskAdded',
         data=TaskAdded(
-            task_id=task.public_id,
+            public_task_id=task.public_id,
             task_status=task.status,
-            assignee=task.assignee,
+            assignee_id=task.assignee,
         ),
     )
     taskman_be(key=task.public_id, value=task_added.json())
@@ -72,7 +72,7 @@ async def shuffle_tasks(uow: TaskmanUoW, taskman_be: MBProducer) -> None:
     for task in tasks:
         assigned = Event(
             event_name='TaskAssigned',
-            data=TaskAssigned(task_id=task.public_id, new_assignee=task.assignee),
+            data=TaskAssigned(public_task_id=task.public_id, assignee_id=task.assignee),
         )
         taskman_be(key=task.public_id, value=assigned.json())
 
@@ -87,5 +87,8 @@ async def complete_task(uow: TaskmanUoW, taskman_be: MBProducer, task_id: str, u
         await uow.tasks.update(task)
         await uow.commit()
 
-    task_completed = Event(event_name='TaskCompleted', data=TaskCompleted(task_id=task_id))
+    task_completed = Event(
+        event_name='TaskCompleted',
+        data=TaskCompleted(public_task_id=task_id, assignee_id=user_id),
+    )
     taskman_be(key=task.public_id, value=task_completed.json())
