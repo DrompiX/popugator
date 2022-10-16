@@ -22,23 +22,29 @@ router = APIRouter(
 @router.post('')
 @handle_general_exc
 async def add_task(r: Request, data: AddTaskRequest) -> AddTaskResponse:
-    tasks_cud, taskman_be = r.app.state.tasks_cud, r.app.state.taskman_be
+    tasks_cud, tasks_be = r.app.state.tasks_cud, r.app.state.tasks_be
     unassigned = UnassignedTask(description=data.description)
-    new_task = await services.add_task(r.app.state.uow, tasks_cud, taskman_be, unassigned)
+    new_task = await services.add_task(r.app.state.uow, tasks_cud, tasks_be, unassigned)
     return AddTaskResponse(public_task_id=new_task.public_id)
 
 
 @router.put('/shuffle', dependencies=[Depends(authorize(TOP_MAN_GROUP))])
 @handle_general_exc
 async def shuffle_tasks(r: Request):
-    await services.shuffle_tasks(r.app.state.uow, r.app.state.taskman_be)
+    await services.shuffle_tasks(r.app.state.uow, r.app.state.tasks_be, r.app.state.tasks_cud)
     return JSONResponse(content={'detail': 'ok'}, status_code=200)
 
 
 @router.put('/{task_id}/complete', dependencies=[Depends(authorize(TASK_DOERS_GROUP))])
 @handle_general_exc
 async def complete_task(r: Request, task_id: str, auth_info: AuthHeaders = Depends(parse_auth_info)):
-    await services.complete_task(r.app.state.uow, r.app.state.taskman_be, task_id, auth_info.user_public_id)
+    await services.complete_task(
+        r.app.state.uow,
+        r.app.state.tasks_be,
+        r.app.state.tasks_cud,
+        task_id,
+        auth_info.user_public_id,
+    )
     return JSONResponse(content={'detail': 'ok'}, status_code=200)
 
 

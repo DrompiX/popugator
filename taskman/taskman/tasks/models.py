@@ -24,7 +24,7 @@ class TaskIsAlreadyCompleted(Exception):
 
 
 class Task(UnassignedTask):
-    assignee: str
+    assignee_id: str
 
     def mark_completed(self) -> None:
         if self.status == TaskStatus.DONE:
