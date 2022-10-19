@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from kafka import KafkaProducer
 from loguru import logger
 
-from common.message_bus.kafka import make_mb_producer
+from common.message_bus.kafka_producer import make_mb_producer
 from gateway.api.routers.users import router as users_router
 from gateway.api.routers.proxy import router as proxy_router
 from gateway.users.pg_repo import PostgresUserRepo

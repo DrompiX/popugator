@@ -27,7 +27,7 @@ async def create_user(request: Request, req: CreateUserRequest):
     try:
         await services.create_user(repo, produce_func, user)
     except UserAlreadyExists as err:
-        raise HTTPException(status_code=404, detail=str(err))
+        raise HTTPException(status_code=409, detail=str(err))
     except Exception as err:
         logger.exception('User creation failed: {}', err)
         raise HTTPException(status_code=500, detail='Unexpected internal error occurred')

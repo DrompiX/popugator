@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from kafka import KafkaProducer
 from loguru import logger
 
-from common.message_bus.kafka import make_mb_producer
+from common.message_bus.kafka_producer import make_mb_producer
 from taskman import listener
 from taskman.db.uow import FakeUoW
 from taskman.api.router import router

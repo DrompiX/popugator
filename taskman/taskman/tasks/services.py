@@ -25,10 +25,10 @@ async def add_task(
 ) -> Task:
     async with uow:
         users = await uow.users.get_all()
-        if not users:
+        possible_assignees = [u for u in users if u.role in TASK_DOERS_GROUP]
+        if not possible_assignees:
             raise TaskAssignFailed('Worker list is empty')
 
-        possible_assignees = [u for u in users if u.role in TASK_DOERS_GROUP]
         assingee = random.choice(possible_assignees)
         task = Task(**new_task.dict(), assignee_id=assingee.public_id)
 
@@ -85,7 +85,7 @@ async def complete_task(
 
 def send_events_for_new_task(task: Task, tasks_cud: MBProducer, tasks_be: MBProducer) -> None:
     added = Event(
-        event_name='TaskAdded',
+        name='TaskAdded',
         data=TaskAdded(
             public_task_id=task.public_id,
             task_status=task.status,
@@ -94,27 +94,27 @@ def send_events_for_new_task(task: Task, tasks_cud: MBProducer, tasks_be: MBProd
     )
     tasks_be(key=task.public_id, value=added.json())
 
-    created = Event(event_name='TaskCreated', data=TaskCreated(**task.dict()))
+    created = Event(name='TaskCreated', data=TaskCreated(**task.dict()))
     tasks_cud(key=task.public_id, value=created.json())
 
 
 def send_events_for_assign(task: Task, tasks_cud: MBProducer, tasks_be: MBProducer) -> None:
     assigned = Event(
-        event_name='TaskAssigned',
+        name='TaskAssigned',
         data=TaskAssigned(public_task_id=task.public_id, assignee_id=task.assignee_id),
     )
     tasks_be(key=task.public_id, value=assigned.json())
 
-    updated = Event(event_name='TaskUpdated', data=TaskUpdated(**task.dict()))
+    updated = Event(name='TaskUpdated', data=TaskUpdated(**task.dict()))
     tasks_cud(key=task.public_id, value=updated.json())
 
 
 def send_events_for_complete(task: Task, tasks_cud: MBProducer, tasks_be: MBProducer) -> None:
     completed = Event(
-        event_name='TaskCompleted',
+        name='TaskCompleted',
         data=TaskCompleted(public_task_id=task.public_id, assignee_id=task.assignee_id),
     )
     tasks_be(key=task.public_id, value=completed.json())
 
-    updated = Event(event_name='TaskUpdated', data=TaskUpdated(**task.dict()))
+    updated = Event(name='TaskUpdated', data=TaskUpdated(**task.dict()))
     tasks_cud(key=task.public_id, value=updated.json())

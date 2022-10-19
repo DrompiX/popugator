@@ -1,15 +1,12 @@
-import asyncio
-import json
-from typing import cast
+from functools import partial
 
 from kafka import KafkaConsumer
-from kafka.consumer.fetcher import ConsumerRecord
 from loguru import logger
 
-from common.events.base import Event
 from common.events.cud.users import UserCreated
 from taskman.db.uow import FakeUoW, TaskmanUoW
 from taskman.users.models import SystemRole, User
+from common.message_bus.kafka_consumer import EventSpec, HandlerRegistry, HandlerSpec, run_consumer
 
 
 async def handle_user_created(uow: TaskmanUoW, event: UserCreated) -> None:
@@ -19,37 +16,27 @@ async def handle_user_created(uow: TaskmanUoW, event: UserCreated) -> None:
         logger.info('Created new user {!r} from cud event', new_user)
 
 
-def poll_events(uow: TaskmanUoW):
-    loop = asyncio.new_event_loop()
+def poll_events(uow: TaskmanUoW) -> None:
     topics = {'user-streaming'}
-    consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'])
-
     logger.info('Start listening for events on topics {}', topics)
-    msg: ConsumerRecord
-    for msg in consumer:
-        logger.info('Received new message: {}', msg)
-        try:
-            json_event = json.loads(cast(str, msg.value))
-            event = Event.parse_obj(json_event)
-        except (json.JSONDecodeError, ValueError):
-            logger.exception('Could not parse event from msg {}', msg)
-            continue
 
-        try:
-            match event.event_name:
-                case 'UserCreated':
-                    user_created = UserCreated.parse_obj(json_event['data'])
-                    loop.run_until_complete(handle_user_created(uow, user_created))
-                case _:
-                    logger.warning('Received unknow event_name: {}', event.event_name)
-                    continue
-        except Exception:
-            logger.exception('Failed to process event: {}', event)
+    handlers: HandlerRegistry = {
+        EventSpec(name='UserCreated', version=1): HandlerSpec(
+            model=UserCreated,
+            handler=partial(handle_user_created, uow),
+        ),
+    }
+    try:
+        consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'])
+        run_consumer(consumer, handlers)
+    except KeyboardInterrupt:
+        logger.info('Shutting down...')
+        exit(1)
 
 
 if __name__ == '__main__':
+    uow = FakeUoW()
     try:
-        uow = FakeUoW()
         poll_events(uow)
     except KeyboardInterrupt:
         logger.info('Shutting down...')

@@ -8,7 +8,7 @@ from gateway.users.repo import UserRepo
 async def create_user(repo: UserRepo, produce_func: MBProducer, user: User) -> None:
     await repo.create_user(user)
     event = Event(
-        event_name='UserCreated',
+        name='UserCreated',
         data=UserCreated(
             public_id=user.public_id,
             username=user.username,
