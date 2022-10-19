@@ -87,8 +87,8 @@ def send_events_for_new_task(task: Task, tasks_cud: MBProducer, tasks_be: MBProd
     added = Event(
         name='TaskAdded',
         data=TaskAdded(
-            public_task_id=task.public_id,
-            task_status=task.status,
+            public_id=task.public_id,
+            description=task.description,
             assignee_id=task.assignee_id,
         ),
     )
@@ -101,7 +101,7 @@ def send_events_for_new_task(task: Task, tasks_cud: MBProducer, tasks_be: MBProd
 def send_events_for_assign(task: Task, tasks_cud: MBProducer, tasks_be: MBProducer) -> None:
     assigned = Event(
         name='TaskAssigned',
-        data=TaskAssigned(public_task_id=task.public_id, assignee_id=task.assignee_id),
+        data=TaskAssigned(public_id=task.public_id, assignee_id=task.assignee_id),
     )
     tasks_be(key=task.public_id, value=assigned.json())
 
@@ -112,7 +112,7 @@ def send_events_for_assign(task: Task, tasks_cud: MBProducer, tasks_be: MBProduc
 def send_events_for_complete(task: Task, tasks_cud: MBProducer, tasks_be: MBProducer) -> None:
     completed = Event(
         name='TaskCompleted',
-        data=TaskCompleted(public_task_id=task.public_id, assignee_id=task.assignee_id),
+        data=TaskCompleted(public_id=task.public_id, assignee_id=task.assignee_id),
     )
     tasks_be(key=task.public_id, value=completed.json())
 

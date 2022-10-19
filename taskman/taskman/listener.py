@@ -14,24 +14,21 @@ async def handle_user_created(uow: TaskmanUoW, event: UserCreated) -> None:
     async with uow:
         await uow.users.create_user(user=new_user)
         logger.info('Created new user {!r} from cud event', new_user)
+        await uow.commit()
 
 
 def poll_events(uow: TaskmanUoW) -> None:
     topics = {'user-streaming'}
     logger.info('Start listening for events on topics {}', topics)
 
+    consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'])
     handlers: HandlerRegistry = {
         EventSpec(name='UserCreated', version=1): HandlerSpec(
             model=UserCreated,
             handler=partial(handle_user_created, uow),
         ),
     }
-    try:
-        consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'])
-        run_consumer(consumer, handlers)
-    except KeyboardInterrupt:
-        logger.info('Shutting down...')
-        exit(1)
+    run_consumer(consumer, handlers)
 
 
 if __name__ == '__main__':

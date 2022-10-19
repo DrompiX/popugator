@@ -57,7 +57,7 @@ def process_event(
     parsed_event = Event.parse_obj(json_event)
     handler_spec = handlers.get(EventSpec(parsed_event.name, parsed_event.version))
     if handler_spec is None:
-        raise HandlerNotFound(f'No handler for event {parsed_event!r}')
+        raise HandlerNotFound(f'No handler for event {json_event}')
 
     event_data = handler_spec.model.parse_obj(json_event['data'])
     loop.run_until_complete(handler_spec.handler(event_data))

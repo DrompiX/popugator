@@ -2,16 +2,16 @@ from pydantic import BaseModel
 
 
 class TaskAdded(BaseModel):
-    public_task_id: str
-    task_status: str
+    public_id: str
+    description: str
     assignee_id: str
 
 
 class TaskAssigned(BaseModel):
-    public_task_id: str
+    public_id: str
     assignee_id: str
 
 
 class TaskCompleted(BaseModel):
-    public_task_id: str
+    public_id: str
     assignee_id: str

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
+from common.utils import handle_general_exc
 from taskman.api.auth import authorize, parse_auth_info, AuthHeaders
-from taskman.api.utils import handle_general_exc
 from taskman.tasks import services
 from taskman.api.models import APIError, AddTaskRequest, AddTaskResponse
 from taskman.tasks.models import Task, UnassignedTask
