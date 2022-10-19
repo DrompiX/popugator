@@ -14,8 +14,8 @@ RUN pipenv install --deploy --clear --system --ignore-pipfile;
 # Transfer code
 WORKDIR /app
 
-COPY gateway/docker-entrypoint.sh .
 COPY common common
-COPY gateway/gateway gateway
+COPY gateway/docker-entrypoint.sh .
+COPY gateway/app gateway/app
 
 ENTRYPOINT [ "/app/docker-entrypoint.sh" ]
