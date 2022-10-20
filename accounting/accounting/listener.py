@@ -42,7 +42,12 @@ async def handle_task_added(uow: AccountingUoW, produce: MBProducer, event: task
     # Send event that money were removed from user balance
     fee_event = Event(
         name='TransactionApplied',
-        data=TransactionApplied(public_user_id=event.assignee_id, type=TransactionType.WITHDRAWAL, amount=new_task.fee),
+        data=TransactionApplied(
+            public_user_id=event.assignee_id,
+            type=TransactionType.WITHDRAWAL,
+            amount=new_task.fee,
+            applied_at=transaction.created_at,
+        ),
     )
     produce(key=event.assignee_id, value=fee_event.json())
 
@@ -68,7 +73,12 @@ async def handle_task_assigned(uow: AccountingUoW, produce: MBProducer, event: t
 
     fee_event = Event(
         name='TransactionApplied',
-        data=TransactionApplied(public_user_id=event.assignee_id, type=TransactionType.WITHDRAWAL, amount=task.fee),
+        data=TransactionApplied(
+            public_user_id=event.assignee_id,
+            type=TransactionType.WITHDRAWAL,
+            amount=task.fee,
+            applied_at=transaction.created_at,
+        ),
     )
     produce(key=event.assignee_id, value=fee_event.json())
 
@@ -90,7 +100,12 @@ async def handle_task_completed(uow: AccountingUoW, produce: MBProducer, event: 
     # Send event that money were added to user balance
     profit_event = Event(
         name='TransactionApplied',
-        data=TransactionApplied(public_user_id=event.assignee_id, type=TransactionType.PROFIT, amount=task.profit),
+        data=TransactionApplied(
+            public_user_id=event.assignee_id,
+            type=TransactionType.PROFIT,
+            amount=task.profit,
+            applied_at=transaction.created_at,
+        ),
     )
     produce(key=event.assignee_id, value=profit_event.json())
 

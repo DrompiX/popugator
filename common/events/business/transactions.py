@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel
 
@@ -12,3 +13,4 @@ class TransactionApplied(BaseModel):
     public_user_id: str
     type: TransactionType
     amount: int
+    applied_at: datetime
