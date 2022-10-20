@@ -5,14 +5,14 @@ from loguru import logger
 
 from analytics.db.uow import FakeUoW, AnalyticsUoW
 from analytics.tasks.models import Task
-from analytics.users.models import SystemRole, User
+from analytics.users.models import User
 from common.events.business import transactions as trans_be
 from common.events.cud import users as users_cud, tasks as tasks_cud
 from common.message_bus.kafka_consumer import EventSpec, HandlerRegistry, HandlerSpec, run_consumer
 
 
 async def handle_user_created(uow: AnalyticsUoW, event: users_cud.UserCreated) -> None:
-    new_user = User(username=event.username, public_id=event.public_id, role=SystemRole(event.role))
+    new_user = User(public_id=event.public_id)
     async with uow:
         await uow.users.create_user(user=new_user)
         logger.info('Created new user {!r} from cud event', new_user)
@@ -20,7 +20,7 @@ async def handle_user_created(uow: AnalyticsUoW, event: users_cud.UserCreated) -
 
 
 async def handle_task_created(uow: AnalyticsUoW, event: tasks_cud.TaskCreated) -> None:
-    new_task = Task(public_id=event.public_id, description=event.description)
+    new_task = Task(public_id=event.public_id, description=event.description, jira_id=event.jira_id)
     async with uow:
         await uow.tasks.create(new_task)
         await uow.commit()
@@ -38,7 +38,7 @@ def init_handler_registry(uow: AnalyticsUoW) -> HandlerRegistry:
             model=users_cud.UserCreated,
             handler=partial(handle_user_created, uow),
         ),
-        EventSpec(name='TaskCreated', version=1): HandlerSpec(
+        EventSpec(name='TaskCreated', version=2): HandlerSpec(
             model=tasks_cud.TaskCreated,
             handler=partial(handle_task_created, uow),
         ),

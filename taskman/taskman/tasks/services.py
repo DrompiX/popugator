@@ -86,15 +86,17 @@ async def complete_task(
 def send_events_for_new_task(task: Task, tasks_cud: MBProducer, tasks_be: MBProducer) -> None:
     added = Event(
         name='TaskAdded',
+        version=2,
         data=TaskAdded(
             public_id=task.public_id,
+            jira_id=task.jira_id,
             description=task.description,
             assignee_id=task.assignee_id,
         ),
     )
     tasks_be(key=task.public_id, value=added.json())
 
-    created = Event(name='TaskCreated', data=TaskCreated(**task.dict()))
+    created = Event(name='TaskCreated', version=2, data=TaskCreated(**task.dict()))
     tasks_cud(key=task.public_id, value=created.json())
 
 

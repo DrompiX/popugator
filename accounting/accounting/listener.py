@@ -7,7 +7,7 @@ from loguru import logger
 from accounting.transactions.models import TransactionLogRecord
 from accounting.db.uow import FakeUoW, AccountingUoW
 from accounting.tasks.models import Task
-from accounting.users.models import SystemRole, User
+from accounting.users.models import User
 from common.events.base import Event
 from common.events.business import tasks as tasks_be
 from common.events.business.transactions import TransactionApplied, TransactionType
@@ -18,7 +18,7 @@ from common.message_bus.protocols import MBProducer
 
 
 async def handle_user_created(uow: AccountingUoW, event: users_cud.UserCreated) -> None:
-    new_user = User(username=event.username, public_id=event.public_id, role=SystemRole(event.role))
+    new_user = User(public_id=event.public_id)
     async with uow:
         await uow.users.create_user(user=new_user)
         logger.info('Created new user {!r} from cud event', new_user)
@@ -27,12 +27,18 @@ async def handle_user_created(uow: AccountingUoW, event: users_cud.UserCreated) 
 
 async def handle_task_added(uow: AccountingUoW, produce: MBProducer, event: tasks_be.TaskAdded) -> None:
     fee, profit = random.randint(10, 20), random.randint(20, 40)
-    new_task = Task(public_id=event.public_id, description=event.description, fee=fee, profit=profit)
+    new_task = Task(
+        public_id=event.public_id,
+        jira_id=event.jira_id,
+        description=event.description,
+        fee=fee,
+        profit=profit,
+    )
     async with uow:
         await uow.tasks.create(new_task)
         transaction = TransactionLogRecord(
             public_user_id=event.assignee_id,
-            description=f'Deduct assignment fee for task - {new_task.description}',
+            description=f'Deduct assignment fee for task - {new_task.get_full_name()}',
             debit=0,
             credit=new_task.fee,
         )
@@ -60,7 +66,7 @@ async def handle_task_assigned(uow: AccountingUoW, produce: MBProducer, event: t
         task = await uow.tasks.get_by_id(event.public_id)
         transaction = TransactionLogRecord(
             public_user_id=event.assignee_id,
-            description=f'Deduct assignment fee for task - {task.description}',
+            description=f'Deduct assignment fee for task - {task.get_full_name()}',
             debit=0,
             credit=task.fee,
         )
@@ -88,7 +94,7 @@ async def handle_task_completed(uow: AccountingUoW, produce: MBProducer, event: 
         task = await uow.tasks.get_by_id(event.public_id)
         transaction = TransactionLogRecord(
             public_user_id=event.assignee_id,
-            description=f'Add completion profit for task {task.description}',
+            description=f'Add completion profit for task {task.get_full_name()}',
             debit=task.profit,
             credit=0,
         )
@@ -125,7 +131,7 @@ def init_handler_registry(uow: AccountingUoW, accounting_be: MBProducer) -> Hand
             model=users_cud.UserCreated,
             handler=partial(handle_user_created, uow),
         ),
-        EventSpec(name='TaskAdded', version=1): HandlerSpec(
+        EventSpec(name='TaskAdded', version=2): HandlerSpec(
             model=tasks_be.TaskAdded,
             handler=partial(handle_task_added, uow, accounting_be),
         ),

@@ -13,9 +13,7 @@ class SystemRole(str, Enum):
 
 
 class User(BaseModel):
-    username: str
     public_id: str
-    role: SystemRole
 
 
 TOP_MAN_GROUP = {SystemRole.ADMIN, SystemRole.MANAGER}

@@ -36,6 +36,11 @@ async def perform_reset(uow: AccountingUoW, accounting_be: MBProducer) -> None:
 
         payment_event = Event(
             name='TransactionApplied',
-            data=TransactionApplied(public_user_id=user.public_id, type=TransactionType.PAYMENT, amount=balance),
+            data=TransactionApplied(
+                public_user_id=user.public_id,
+                type=TransactionType.PAYMENT,
+                amount=balance,
+                applied_at=payout.created_at,
+            ),
         )
         accounting_be(key=user.public_id, value=payment_event.json())

@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class TaskAdded(BaseModel):
     public_id: str
+    jira_id: str
     description: str
     assignee_id: str
 

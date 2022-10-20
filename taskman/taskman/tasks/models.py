@@ -15,6 +15,7 @@ class TaskStatus(str, Enum):
 
 class UnassignedTask(BaseModel):
     public_id: str = Field(default_factory=generate_uuid)
+    jira_id: str
     description: str
     status: TaskStatus = TaskStatus.OPEN
 
