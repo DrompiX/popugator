@@ -12,7 +12,7 @@ from common.message_bus.kafka_consumer import EventSpec, HandlerRegistry, Handle
 
 
 async def handle_user_created(uow: AnalyticsUoW, event: users_cud.UserCreated) -> None:
-    new_user = User(public_id=event.public_id)
+    new_user = User(public_id=event.data['public_id'])
     async with uow:
         await uow.users.create_user(user=new_user)
         logger.info('Created new user {!r} from cud event', new_user)
@@ -20,7 +20,11 @@ async def handle_user_created(uow: AnalyticsUoW, event: users_cud.UserCreated) -
 
 
 async def handle_task_created(uow: AnalyticsUoW, event: tasks_cud.TaskCreated) -> None:
-    new_task = Task(public_id=event.public_id, description=event.description, jira_id=event.jira_id)
+    new_task = Task(
+        public_id=event.data['public_id'],
+        description=event.data['description'],
+        jira_id=event.data['jira_id'],
+    )
     async with uow:
         await uow.tasks.create(new_task)
         await uow.commit()
@@ -34,15 +38,15 @@ async def handle_transaction_applied(event: trans_be.TransactionApplied) -> None
 
 def init_handler_registry(uow: AnalyticsUoW) -> HandlerRegistry:
     return {
-        EventSpec(name='UserCreated', version=1): HandlerSpec(
+        EventSpec(name='UserCreated', domain='users', version=1): HandlerSpec(
             model=users_cud.UserCreated,
             handler=partial(handle_user_created, uow),
         ),
-        EventSpec(name='TaskCreated', version=2): HandlerSpec(
+        EventSpec(name='TaskCreated', domain='taskman', version=2): HandlerSpec(
             model=tasks_cud.TaskCreated,
             handler=partial(handle_task_created, uow),
         ),
-        EventSpec(name='TransactionApplied', version=1): HandlerSpec(
+        EventSpec(name='TransactionApplied', domain='accounting', version=1): HandlerSpec(
             model=trans_be.TransactionApplied,
             handler=handle_transaction_applied,
         ),

@@ -1,8 +1,7 @@
 import random
 
-from common.events.base import Event
 from common.events.business.tasks import TaskAdded, TaskAssigned, TaskCompleted
-from common.events.cud.tasks import TaskCreated, TaskUpdated
+from common.events.cud.tasks import TaskCreated, TaskData, TaskUpdated
 from common.message_bus.protocols import MBProducer
 from taskman.tasks.models import Task, UnassignedTask
 from taskman.db.uow import TaskmanUoW
@@ -19,8 +18,8 @@ class CompltetionError(Exception):
 
 async def add_task(
     uow: TaskmanUoW,
-    tasks_cud: MBProducer,
-    tasks_be: MBProducer,
+    cud_produce: MBProducer,
+    be_produce: MBProducer,
     new_task: UnassignedTask,
 ) -> Task:
     async with uow:
@@ -35,11 +34,11 @@ async def add_task(
         await uow.tasks.create(task)
         await uow.commit()
 
-    send_events_for_new_task(task, tasks_be=tasks_be, tasks_cud=tasks_cud)
+    send_events_for_new_task(task, be_produce=be_produce, cud_produce=cud_produce)
     return task
 
 
-async def shuffle_tasks(uow: TaskmanUoW, tasks_be: MBProducer, tasks_cud: MBProducer) -> None:
+async def shuffle_tasks(uow: TaskmanUoW, be_produce: MBProducer, cud_produce: MBProducer) -> None:
     async with uow:
         users = await uow.users.get_all()
         if not users:
@@ -58,13 +57,13 @@ async def shuffle_tasks(uow: TaskmanUoW, tasks_be: MBProducer, tasks_cud: MBProd
         await uow.commit()
 
     for task in tasks:
-        send_events_for_assign(task, tasks_be=tasks_be, tasks_cud=tasks_cud)
+        send_events_for_assign(task, be_produce=be_produce, cud_produce=cud_produce)
 
 
 async def complete_task(
     uow: TaskmanUoW,
-    tasks_be: MBProducer,
-    tasks_cud: MBProducer,
+    be_produce: MBProducer,
+    cud_produce: MBProducer,
     task_id: str,
     user_id: str,
 ) -> None:
@@ -77,46 +76,45 @@ async def complete_task(
         await uow.tasks.update(task)
         await uow.commit()
 
-    send_events_for_complete(task, tasks_be=tasks_be, tasks_cud=tasks_cud)
+    send_events_for_complete(task, tasks_be=be_produce, tasks_cud=cud_produce)
 
 
 ##### Event senders #####
 
 
-def send_events_for_new_task(task: Task, tasks_cud: MBProducer, tasks_be: MBProducer) -> None:
-    added = Event(
-        name='TaskAdded',
+def send_events_for_new_task(task: Task, cud_produce: MBProducer, be_produce: MBProducer) -> None:
+    added = TaskAdded(
         version=2,
-        data=TaskAdded(
-            public_id=task.public_id,
-            jira_id=task.jira_id,
-            description=task.description,
-            assignee_id=task.assignee_id,
-        ),
+        data={
+            'public_id': task.public_id,
+            'jira_id': task.jira_id,
+            'description': task.description,
+            'assignee_id': task.assignee_id,
+        },
     )
-    tasks_be(key=task.public_id, value=added.json())
+    be_produce(key=task.public_id, value=added.json())
 
-    created = Event(name='TaskCreated', version=2, data=TaskCreated(**task.dict()))
-    tasks_cud(key=task.public_id, value=created.json())
+    created = TaskCreated(version=2, data=TaskData(**task.dict()))
+    cud_produce(key=task.public_id, value=created.json())
 
 
-def send_events_for_assign(task: Task, tasks_cud: MBProducer, tasks_be: MBProducer) -> None:
-    assigned = Event(
-        name='TaskAssigned',
-        data=TaskAssigned(public_id=task.public_id, assignee_id=task.assignee_id),
+def send_events_for_assign(task: Task, cud_produce: MBProducer, be_produce: MBProducer) -> None:
+    assigned = TaskAssigned(
+        version=1,
+        data={'public_id': task.public_id, 'assignee_id': task.assignee_id},
     )
-    tasks_be(key=task.public_id, value=assigned.json())
+    be_produce(key=task.public_id, value=assigned.json())
 
-    updated = Event(name='TaskUpdated', data=TaskUpdated(**task.dict()))
-    tasks_cud(key=task.public_id, value=updated.json())
+    updated = TaskUpdated(version=2, domain='taskman', data=TaskData(**task.dict()))
+    cud_produce(key=task.public_id, value=updated.json())
 
 
 def send_events_for_complete(task: Task, tasks_cud: MBProducer, tasks_be: MBProducer) -> None:
-    completed = Event(
-        name='TaskCompleted',
-        data=TaskCompleted(public_id=task.public_id, assignee_id=task.assignee_id),
+    completed = TaskCompleted(
+        version=1,
+        data={'public_id': task.public_id, 'assignee_id': task.assignee_id},
     )
     tasks_be(key=task.public_id, value=completed.json())
 
-    updated = Event(name='TaskUpdated', data=TaskUpdated(**task.dict()))
+    updated = TaskUpdated(version=2, domain='taskman', data=TaskData(**task.dict()))
     tasks_cud(key=task.public_id, value=updated.json())

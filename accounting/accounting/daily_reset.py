@@ -4,7 +4,6 @@ from loguru import logger
 
 from accounting.db.uow import AccountingUoW
 from accounting.transactions.models import TransactionLogRecord
-from common.events.base import Event
 from common.events.business.transactions import TransactionApplied, TransactionType
 from common.message_bus.protocols import MBProducer
 from common.utils import generate_utc_dt
@@ -34,13 +33,13 @@ async def perform_reset(uow: AccountingUoW, accounting_be: MBProducer) -> None:
         payout = TransactionLogRecord(user.public_id, 'Daily payout', debit=0, credit=balance)
         await uow.transactions.add(payout)
 
-        payment_event = Event(
-            name='TransactionApplied',
-            data=TransactionApplied(
-                public_user_id=user.public_id,
-                type=TransactionType.PAYMENT,
-                amount=balance,
-                applied_at=payout.created_at,
-            ),
+        payment_event = TransactionApplied(
+            version=1,
+            data={
+                'public_user_id': user.public_id,
+                'type': TransactionType.PAYMENT,
+                'amount': balance,
+                'applied_at': payout.created_at,
+            },
         )
         accounting_be(key=user.public_id, value=payment_event.json())

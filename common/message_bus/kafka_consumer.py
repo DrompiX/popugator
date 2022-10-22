@@ -5,9 +5,8 @@ from typing import Any, Type, cast
 from kafka import KafkaConsumer
 from kafka.consumer.fetcher import ConsumerRecord
 from loguru import logger
-from pydantic import BaseModel
-
 from common.events.base import Event
+
 from common.message_bus.protocols import EventHandler
 
 
@@ -18,12 +17,13 @@ class HandlerNotFound(Exception):
 @dataclass(frozen=True)
 class EventSpec:
     name: str
+    domain: str
     version: int
 
 
 @dataclass(frozen=True)
 class HandlerSpec:
-    model: Type[BaseModel]
+    model: Type[Event]
     handler: EventHandler
 
 
@@ -54,10 +54,15 @@ def process_event(
     handlers: HandlerRegistry,
     loop: asyncio.AbstractEventLoop,
 ) -> None:
-    parsed_event = Event.parse_obj(json_event)
-    handler_spec = handlers.get(EventSpec(parsed_event.name, parsed_event.version))
+    match json_event:
+        case {'name': name, 'domain': domain, 'version': version, 'data': event_data}:
+            event_spec = EventSpec(name, domain, version)
+        case _:
+            raise ValueError('Event does not contain meta info with name, domain, version or data')
+
+    handler_spec = handlers.get(event_spec)
     if handler_spec is None:
         raise HandlerNotFound(f'No handler for event {json_event}')
 
-    event_data = handler_spec.model.parse_obj(json_event['data'])
+    event_data = handler_spec.model.parse_obj(event_data)
     loop.run_until_complete(handler_spec.handler(event_data))

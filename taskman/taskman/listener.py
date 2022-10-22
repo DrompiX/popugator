@@ -10,7 +10,11 @@ from common.message_bus.kafka_consumer import EventSpec, HandlerRegistry, Handle
 
 
 async def handle_user_created(uow: TaskmanUoW, event: UserCreated) -> None:
-    new_user = User(username=event.username, public_id=event.public_id, role=SystemRole(event.role))
+    new_user = User(
+        username=event.data['username'],
+        public_id=event.data['public_id'],
+        role=SystemRole(event.data['role']),
+    )
     async with uow:
         await uow.users.create_user(user=new_user)
         logger.info('Created new user {!r} from cud event', new_user)
@@ -23,7 +27,7 @@ def poll_events(uow: TaskmanUoW) -> None:
 
     consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'])
     handlers: HandlerRegistry = {
-        EventSpec(name='UserCreated', version=1): HandlerSpec(
+        EventSpec(name='UserCreated', version=1, domain='users'): HandlerSpec(
             model=UserCreated,
             handler=partial(handle_user_created, uow),
         ),
