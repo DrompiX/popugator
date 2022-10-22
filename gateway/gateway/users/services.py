@@ -14,4 +14,4 @@ async def create_user(repo: UserRepo, produce_func: MBProducer, user: User) -> N
 
 
 async def get_user(repo: UserRepo, username: str) -> User:
-    return await repo.get_user(username)
+    return await repo.get_by_username(username)

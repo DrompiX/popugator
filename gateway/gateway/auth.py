@@ -18,7 +18,7 @@ async def do_auth(
         raise HTTPException(HTTP_401_UNAUTHORIZED, detail='Auth info was not specified')
 
     try:
-        return await users_repo.get_user(username=bearer_data.credentials)
+        return await users_repo.get_by_username(username=bearer_data.credentials)
     except UserNotFound:
         raise HTTPException(HTTP_403_FORBIDDEN, detail='Invalid auth credentials')
     except Exception as err:
