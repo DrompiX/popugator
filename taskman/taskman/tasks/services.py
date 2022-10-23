@@ -83,6 +83,9 @@ async def complete_task(
 
 
 def send_events_for_new_task(task: Task, cud_produce: MBProducer, be_produce: MBProducer) -> None:
+    created = TaskCreated(version=2, data=TaskData(**task.dict()))
+    cud_produce(key=task.public_id, value=created.json())
+
     added = TaskAdded(
         version=2,
         data={
@@ -94,27 +97,24 @@ def send_events_for_new_task(task: Task, cud_produce: MBProducer, be_produce: MB
     )
     be_produce(key=task.public_id, value=added.json())
 
-    created = TaskCreated(version=2, data=TaskData(**task.dict()))
-    cud_produce(key=task.public_id, value=created.json())
-
 
 def send_events_for_assign(task: Task, cud_produce: MBProducer, be_produce: MBProducer) -> None:
+    updated = TaskUpdated(version=2, domain='taskman', data=TaskData(**task.dict()))
+    cud_produce(key=task.public_id, value=updated.json())
+
     assigned = TaskAssigned(
         version=1,
         data={'public_id': task.public_id, 'assignee_id': task.assignee_id},
     )
     be_produce(key=task.public_id, value=assigned.json())
 
-    updated = TaskUpdated(version=2, domain='taskman', data=TaskData(**task.dict()))
-    cud_produce(key=task.public_id, value=updated.json())
-
 
 def send_events_for_complete(task: Task, tasks_cud: MBProducer, tasks_be: MBProducer) -> None:
+    updated = TaskUpdated(version=2, domain='taskman', data=TaskData(**task.dict()))
+    tasks_cud(key=task.public_id, value=updated.json())
+
     completed = TaskCompleted(
         version=1,
         data={'public_id': task.public_id, 'assignee_id': task.assignee_id},
     )
     tasks_be(key=task.public_id, value=completed.json())
-
-    updated = TaskUpdated(version=2, domain='taskman', data=TaskData(**task.dict()))
-    tasks_cud(key=task.public_id, value=updated.json())

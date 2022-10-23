@@ -5,6 +5,7 @@ from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 from pydantic import BaseModel
 
 from loguru import logger
+from analytics.db.uow import AnalyticsUoW
 
 from analytics.users.models import SystemRole
 from analytics.users.repo import UserNotFound
@@ -29,8 +30,10 @@ def authorize(allowed: set[SystemRole]) -> Callable[[Request], Awaitable[None]]:
         if auth_info.user_role not in allowed:
             raise HTTPException(status_code=HTTP_403_FORBIDDEN)
 
+        uow: AnalyticsUoW = r.app.state.uow
         try:
-            db_user = await r.app.state.uow.users.get_user(auth_info.user_public_id)
+            async with uow:
+                db_user = await uow.users.get_by_id(auth_info.user_public_id)
         except UserNotFound:
             raise HTTPException(status_code=HTTP_401_UNAUTHORIZED)
 

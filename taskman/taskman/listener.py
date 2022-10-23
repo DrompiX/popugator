@@ -1,10 +1,12 @@
+import asyncio
 from functools import partial
 
+import asyncpg
 from kafka import KafkaConsumer
 from loguru import logger
 
 from common.events.cud.users import UserCreated
-from taskman.db.uow import FakeUoW, TaskmanUoW
+from taskman.db.uow import PgTaskmanUoW, TaskmanUoW
 from taskman.users.models import SystemRole, User
 from common.message_bus.kafka_consumer import EventSpec, HandlerRegistry, HandlerSpec, run_consumer
 
@@ -21,24 +23,32 @@ async def handle_user_created(uow: TaskmanUoW, event: UserCreated) -> None:
         await uow.commit()
 
 
-def poll_events(uow: TaskmanUoW) -> None:
-    topics = {'user-streaming'}
-    logger.info('Start listening for events on topics {}', topics)
+async def poll_events() -> None:
+    pool: asyncpg.Pool | None = await asyncpg.create_pool(
+        dsn='postgres://postgres:password12345@localhost:5432',
+        database='taskman',
+    )
+    if pool is None:
+        raise ValueError('Connection to database failed, could not start service')
 
-    consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'])
+    uow = PgTaskmanUoW(pool)
+    topics = {'user-streaming'}
+
+    consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'], group_id='taskman')
     handlers: HandlerRegistry = {
         EventSpec(name='UserCreated', version=1, domain='users'): HandlerSpec(
             model=UserCreated,
             handler=partial(handle_user_created, uow),
         ),
     }
-    run_consumer(consumer, handlers)
+
+    logger.info('Start listening for events on topics {}', topics)
+    await run_consumer(consumer, handlers)
+
+
+def start_poller():
+    asyncio.run(poll_events())
 
 
 if __name__ == '__main__':
-    uow = FakeUoW()
-    try:
-        poll_events(uow)
-    except KeyboardInterrupt:
-        logger.info('Shutting down...')
-        exit(1)
+    start_poller()

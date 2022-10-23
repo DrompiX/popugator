@@ -11,10 +11,10 @@ class PostgresUserRepo(UserRepo):
 
     async def create_user(self, user: User) -> None:
         query = '''
-            INSERT INTO users(public_id) VALUES ($1)
+            INSERT INTO users(public_id, role) VALUES ($1, $2)
             ON CONFLICT (public_id) DO NOTHING
         '''
-        await self._conn.execute(query, user.public_id)
+        await self._conn.execute(query, user.public_id, user.role)
 
     async def get_by_id(self, public_id: str) -> User:
         query = 'SELECT * FROM users WHERE public_id = $1'

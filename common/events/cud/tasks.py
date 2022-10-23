@@ -29,4 +29,21 @@ class TaskCreated(Event):
 
 class TaskUpdated(Event):
     name: str = Field(default='TaskUpdated', const=True)
+    domain: str = Field(default='taskman', const=True)
     data: TaskData
+
+
+#######################################
+# TaskUpdatedPrices event description #
+#######################################
+
+
+class TaskDataWithPrices(TaskData):
+    fee: int
+    profit: int
+
+
+class TaskUpdatedPrices(Event):
+    name: str = Field(default='TaskUpdated', const=True)
+    domain: str = Field(default='accounting', const=True)
+    data: TaskDataWithPrices

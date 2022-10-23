@@ -1,12 +1,12 @@
-import asyncio
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from typing import Any, Type, cast
+
 from kafka import KafkaConsumer
 from kafka.consumer.fetcher import ConsumerRecord
 from loguru import logger
-from common.events.base import Event
 
+from common.events.base import Event
 from common.message_bus.protocols import EventHandler
 
 
@@ -30,9 +30,7 @@ class HandlerSpec:
 HandlerRegistry = dict[EventSpec, HandlerSpec]
 
 
-def run_consumer(consumer: KafkaConsumer, handlers: HandlerRegistry) -> None:
-    loop = asyncio.new_event_loop()
-
+async def run_consumer(consumer: KafkaConsumer, handlers: HandlerRegistry) -> None:
     msg: ConsumerRecord
     for msg in consumer:
         try:
@@ -42,20 +40,20 @@ def run_consumer(consumer: KafkaConsumer, handlers: HandlerRegistry) -> None:
             continue
 
         try:
-            process_event(json_event, handlers, loop)
+            await process_event(json_event, handlers)
+            logger.info('Consumed from topic {} message {}', msg.topic, json_event)
         except HandlerNotFound as err:
             logger.warning('Consumer could not handle valid event: {}', err)
         except Exception as err:
             logger.exception('Failed to process event({}): {}', json_event, err)
 
 
-def process_event(
+async def process_event(
     json_event: dict[str, Any],
     handlers: HandlerRegistry,
-    loop: asyncio.AbstractEventLoop,
 ) -> None:
     match json_event:
-        case {'name': name, 'domain': domain, 'version': version, 'data': event_data}:
+        case {'name': name, 'domain': domain, 'version': version}:
             event_spec = EventSpec(name, domain, version)
         case _:
             raise ValueError('Event does not contain meta info with name, domain, version or data')
@@ -64,5 +62,5 @@ def process_event(
     if handler_spec is None:
         raise HandlerNotFound(f'No handler for event {json_event}')
 
-    event_data = handler_spec.model.parse_obj(event_data)
-    loop.run_until_complete(handler_spec.handler(event_data))
+    event_data = handler_spec.model.parse_obj(json_event)
+    await handler_spec.handler(event_data)

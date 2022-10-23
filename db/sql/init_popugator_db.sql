@@ -41,7 +41,8 @@ CREATE TYPE SYSTEM_ROLE AS ENUM ('admin', 'manager', 'accountant', 'worker');
 
 CREATE TABLE users (
     id            SERIAL PRIMARY KEY,
-    public_id     TEXT NOT NULL UNIQUE
+    public_id     TEXT NOT NULL UNIQUE,
+    role          SYSTEM_ROLE
 );
 
 CREATE TABLE tasks (
@@ -65,11 +66,13 @@ CREATE TABLE transactions (
 
 \c analytics;
 
+CREATE TYPE SYSTEM_ROLE AS ENUM ('admin', 'manager', 'accountant', 'worker');
 CREATE TYPE TASK_STATUS AS ENUM ('open', 'done');
 
 CREATE TABLE users (
     id            SERIAL PRIMARY KEY,
-    public_id     TEXT NOT NULL UNIQUE
+    public_id     TEXT NOT NULL UNIQUE,
+    role          SYSTEM_ROLE
 );
 
 CREATE TABLE tasks (

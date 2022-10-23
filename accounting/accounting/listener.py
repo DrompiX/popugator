@@ -1,30 +1,38 @@
+import asyncio
 from functools import partial
 import random
 
+import asyncpg
 from kafka import KafkaConsumer, KafkaProducer
 from loguru import logger
 
 from accounting.transactions.models import TransactionLogRecord
-from accounting.db.uow import FakeUoW, AccountingUoW
-from accounting.tasks.models import Task
-from accounting.users.models import User
+from accounting.db.uow import AccountingUoW, PgAccountingUoW
+from accounting.tasks.models import Task, TaskStatus
+from accounting.users.models import SystemRole, User
 from common.events.business import tasks as tasks_be
 from common.events.business.transactions import TransactionApplied, TransactionType
 from common.events.cud import users as users_cud
+from common.events.cud.tasks import TaskUpdatedPrices
 from common.message_bus.kafka_consumer import EventSpec, HandlerRegistry, HandlerSpec, run_consumer
 from common.message_bus.kafka_producer import make_mb_producer
 from common.message_bus.protocols import MBProducer
 
 
 async def handle_user_created(uow: AccountingUoW, event: users_cud.UserCreated) -> None:
-    new_user = User(public_id=event.data['public_id'])
+    new_user = User(public_id=event.data['public_id'], role=SystemRole(event.data['role']))
     async with uow:
         await uow.users.create_user(user=new_user)
         logger.info('Created new user {!r} from cud event', new_user)
         await uow.commit()
 
 
-async def handle_task_added(uow: AccountingUoW, produce: MBProducer, event: tasks_be.TaskAdded) -> None:
+async def handle_task_added(
+    uow: AccountingUoW,
+    trans_produce: MBProducer,
+    cud_tasks_produce: MBProducer,
+    event: tasks_be.TaskAdded,
+) -> None:
     fee, profit = random.randint(10, 20), random.randint(20, 40)
     new_task = Task(
         public_id=event.data['public_id'],
@@ -44,20 +52,37 @@ async def handle_task_added(uow: AccountingUoW, produce: MBProducer, event: task
         await uow.transactions.add(transaction)
         await uow.commit()
 
+    logger.info('Created new task {!r} from cud event', new_task)
+    logger.info('Applied new transaction {!r}', transaction)
+
+    # Send CUD event with updated prices info
+    upd_task = TaskUpdatedPrices(
+        version=1,
+        data={
+            'public_id': new_task.public_id,
+            'description': new_task.description,
+            'assignee_id': event.data['assignee_id'],
+            'jira_id': new_task.jira_id,
+            'status': TaskStatus.OPEN,
+            'fee': new_task.fee,
+            'profit': new_task.profit,
+        },
+    )
+    cud_tasks_produce(key=upd_task.data['assignee_id'], value=upd_task.json())
+
     # Send event that money were removed from user balance
     fee_event = TransactionApplied(
         version=1,
         data={
+            'public_id': transaction.public_id,
             'public_user_id': event.data['assignee_id'],
             'type': TransactionType.WITHDRAWAL,
-            'amount': new_task.fee,
+            'debit': transaction.debit,
+            'credit': transaction.credit,
             'applied_at': transaction.created_at,
         },
     )
-    produce(key=event.data['assignee_id'], value=fee_event.json())
-
-    logger.info('Created new task {!r} from cud event', new_task)
-    logger.info('Applied new transaction {!r}', transaction)
+    trans_produce(key=event.data['assignee_id'], value=fee_event.json())
 
 
 async def handle_task_assigned(uow: AccountingUoW, produce: MBProducer, event: tasks_be.TaskAssigned) -> None:
@@ -78,9 +103,11 @@ async def handle_task_assigned(uow: AccountingUoW, produce: MBProducer, event: t
     fee_event = TransactionApplied(
         version=1,
         data={
+            'public_id': transaction.public_id,
             'public_user_id': event.data['assignee_id'],
             'type': TransactionType.WITHDRAWAL,
-            'amount': task.fee,
+            'debit': transaction.debit,
+            'credit': transaction.credit,
             'applied_at': transaction.created_at,
         },
     )
@@ -105,9 +132,11 @@ async def handle_task_completed(uow: AccountingUoW, produce: MBProducer, event: 
     profit_event = TransactionApplied(
         version=1,
         data={
+            'public_id': transaction.public_id,
             'public_user_id': event.data['assignee_id'],
             'type': TransactionType.PROFIT,
-            'amount': task.profit,
+            'debit': transaction.debit,
+            'credit': transaction.credit,
             'applied_at': transaction.created_at,
         },
     )
@@ -123,7 +152,7 @@ async def handle_transaction_applied(event: TransactionApplied) -> None:
             pass
 
 
-def init_handler_registry(uow: AccountingUoW, accounting_be: MBProducer) -> HandlerRegistry:
+def init_handler_registry(uow: AccountingUoW, accounting_be: MBProducer, tasks_cud: MBProducer) -> HandlerRegistry:
     return {
         EventSpec(name='UserCreated', domain='users', version=1): HandlerSpec(
             model=users_cud.UserCreated,
@@ -131,7 +160,7 @@ def init_handler_registry(uow: AccountingUoW, accounting_be: MBProducer) -> Hand
         ),
         EventSpec(name='TaskAdded', domain='taskman', version=2): HandlerSpec(
             model=tasks_be.TaskAdded,
-            handler=partial(handle_task_added, uow, accounting_be),
+            handler=partial(handle_task_added, uow, accounting_be, tasks_cud),
         ),
         EventSpec(name='TaskAssigned', domain='taskman', version=1): HandlerSpec(
             model=tasks_be.TaskAssigned,
@@ -148,15 +177,30 @@ def init_handler_registry(uow: AccountingUoW, accounting_be: MBProducer) -> Hand
     }
 
 
-if __name__ == '__main__':
-    uow = FakeUoW()
+async def poll_events() -> None:
+    pool: asyncpg.Pool | None = await asyncpg.create_pool(
+        dsn='postgres://postgres:password12345@localhost:5432',
+        database='accounting',
+    )
+    if pool is None:
+        raise ValueError('Connection to database failed, could not start service')
+
     topics = {'user-streaming', 'task-streaming', 'task-lifecycle', 'accounting'}
 
-    consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'])
+    uow = PgAccountingUoW(pool)
+    consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'], group_id='accounting')
     producer = KafkaProducer(bootstrap_servers=['localhost:9095'], linger_ms=2)
-
     accounting_be = make_mb_producer(producer, topic='accounting', sync=True)
-    handlers = init_handler_registry(uow, accounting_be)
+    tasks_cud = make_mb_producer(producer, topic='task-streaming', sync=True)
+    handlers = init_handler_registry(uow, accounting_be, tasks_cud)
 
-    logger.info('Start polling events on topics {}', topics)
-    run_consumer(consumer, handlers)
+    logger.info('Start listening for events on topics {}', topics)
+    await run_consumer(consumer, handlers)
+
+
+def start_poller():
+    asyncio.run(poll_events())
+
+
+if __name__ == '__main__':
+    start_poller()

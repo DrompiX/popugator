@@ -21,7 +21,8 @@ router = APIRouter(
 @handle_general_exc
 async def get_user_account_info(r: Request, auth: AuthHeaders = Depends(parse_auth_info)):
     uow: AccountingUoW = r.app.state.uow
-    transactions = await uow.transactions.get_by_user_id(auth.user_public_id)
+    async with uow:
+        transactions = await uow.transactions.get_by_user_id(auth.user_public_id)
     total_debit, total_credit, log_view = 0, 0, []
 
     for transaction in transactions:
@@ -45,11 +46,12 @@ async def get_user_account_info(r: Request, auth: AuthHeaders = Depends(parse_au
 )
 @handle_general_exc
 async def get_money_stats_for_today(r: Request):
-    uow: AccountingUoW = r.app.state.uow
     today = generate_utc_dt().date()
-    transactions = await uow.transactions.get_all_by_date(today)
-    total_debit, total_credit = 0, 0
+    uow: AccountingUoW = r.app.state.uow
+    async with uow:
+        transactions = await uow.transactions.get_all_by_date(today)
 
+    total_debit, total_credit = 0, 0
     for transaction in transactions:
         total_debit += transaction.debit
         total_credit += transaction.credit

@@ -17,9 +17,11 @@ class TransactionType(str, Enum):
 
 
 class TransactionAppliedData(EventData):
+    public_id: str
     public_user_id: str
     type: TransactionType
-    amount: int
+    debit: int
+    credit: int
     applied_at: datetime
 
 

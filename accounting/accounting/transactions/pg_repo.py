@@ -28,7 +28,7 @@ class PostgresTransactionRepo(TransactionRepo):
 
     async def get_all_by_date(self, d: date) -> list[TransactionLogRecord]:
         query = 'SELECT * FROM transactions WHERE date(created_at) = $1 ORDER BY created_at ASC'
-        rows: list[dict[str, Any]] = await self._conn.fetch(query, str(d))
+        rows: list[dict[str, Any]] = await self._conn.fetch(query, d)
         return [TransactionLogRecord.parse_obj(r) for r in rows]
 
     async def get_balance_by_user(self, d: date) -> dict[str, int]:
@@ -38,5 +38,5 @@ class PostgresTransactionRepo(TransactionRepo):
             WHERE date(created_at) = $1
             GROUP BY public_user_id
         '''
-        rows: list[dict[str, Any]] = await self._conn.fetch(query, str(d))
+        rows: list[dict[str, Any]] = await self._conn.fetch(query, d)
         return {r['public_user_id']: r['balance'] for r in rows}

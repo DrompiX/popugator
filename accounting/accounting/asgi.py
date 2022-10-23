@@ -2,15 +2,13 @@ import sys
 from threading import Thread
 from typing import Any
 
+import asyncpg
 from fastapi import FastAPI
-from kafka import KafkaProducer, KafkaConsumer
 from loguru import logger
 
 from accounting import listener
-from accounting.db.uow import FakeUoW
+from accounting.db.uow import PgAccountingUoW
 from accounting.api.router import router
-from common.message_bus.kafka_consumer import run_consumer
-from common.message_bus.kafka_producer import make_mb_producer
 
 logger.remove()
 logger.add(sink=sys.stdout, level='INFO', backtrace=False, colorize=True, diagnose=False)
@@ -19,15 +17,17 @@ logger.add(sink=sys.stdout, level='INFO', backtrace=False, colorize=True, diagno
 def preconfigure(app: FastAPI) -> Any:
     async def async_launch():
         logger.info('Configuring service...')
-        app.state.uow = FakeUoW()
-        kafka_producer = KafkaProducer(bootstrap_servers=['localhost:9095'], linger_ms=2)
-        app.state.accounting_be = make_mb_producer(kafka_producer, topic='accounting')
+        pool: asyncpg.Pool | None = await asyncpg.create_pool(
+            dsn='postgres://postgres:password12345@localhost:5432',
+            database='accounting',
+        )
+        if pool is None:
+            raise ValueError('Connection to database failed, could not start service')
 
-        # initialize event consuming part
-        topics = {'user-streaming', 'task-streaming', 'task-lifecycle'}
-        consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'])
-        handlers = listener.init_handler_registry(app.state.uow, app.state.accounting_be)
-        app.state.listener = Thread(target=run_consumer, args=(consumer, handlers), daemon=True)
+        app.state.uow = PgAccountingUoW(pool)
+
+        # Start event consumer
+        app.state.listener = Thread(target=listener.start_poller, daemon=True)
         app.state.listener.start()
 
         logger.info('Done with configuration')

@@ -16,7 +16,7 @@ class AccountingUoW(UnitOfWork):
     transactions: TransactionRepo
 
 
-class PgAnalyticsUoW(AccountingUoW, PostgresUoW):
+class PgAccountingUoW(AccountingUoW, PostgresUoW):
     async def __aenter__(self) -> Any:
         await super().__aenter__()
         self.tasks = PostgresTaskRepo(self._conn)

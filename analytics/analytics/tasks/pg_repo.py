@@ -13,7 +13,7 @@ class PostgresTaskRepo(TaskRepo):
     async def create(self, task: Task) -> None:
         query = '''
             INSERT INTO tasks(public_id, jira_id, description, status, fee, profit)
-            VALUES ($1, $2, $3, $4)
+            VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (public_id) DO NOTHING
         '''
         args = (task.public_id, task.jira_id, task.description, task.status, task.fee, task.profit)
@@ -21,10 +21,10 @@ class PostgresTaskRepo(TaskRepo):
 
     async def update(self, task: Task) -> None:
         query = '''
-            UPDATE tasks SET (jira_id, description, status) = ($2, $3, $4)
+            UPDATE tasks SET (description, status, fee, profit) = ($2, $3, $4, $5)
             WHERE public_id = $1
         '''
-        args = (task.public_id, task.jira_id, task.description, task.status)
+        args = (task.public_id, task.description, task.status, task.fee, task.profit)
         await self._conn.execute(query, *args)
 
     async def get_by_id(self, task_id: str) -> Task:

@@ -1,4 +1,13 @@
+from enum import Enum
 from pydantic import BaseModel, PositiveInt
+
+
+class TaskStatus(str, Enum):
+    OPEN = 'open'
+    DONE = 'done'
+
+    def __repr__(self) -> str:
+        return str(self)
 
 
 class Task(BaseModel):
