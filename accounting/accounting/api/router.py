@@ -21,7 +21,7 @@ router = APIRouter(
 @handle_general_exc
 async def get_user_account_info(r: Request, auth: AuthHeaders = Depends(parse_auth_info)):
     uow: AccountingUoW = r.app.state.uow
-    transactions = await uow.transactions.get_by_user(auth.user_public_id)
+    transactions = await uow.transactions.get_by_user_id(auth.user_public_id)
     total_debit, total_credit, log_view = 0, 0, []
 
     for transaction in transactions:

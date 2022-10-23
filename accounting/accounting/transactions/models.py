@@ -1,13 +1,14 @@
-from dataclasses import dataclass, field
 from datetime import datetime
 
-from common.utils import generate_utc_dt
+from pydantic import BaseModel, Field
+
+from common.utils import generate_utc_dt, generate_uuid
 
 
-@dataclass
-class TransactionLogRecord:
+class TransactionLogRecord(BaseModel):
+    public_id: str = Field(default_factory=generate_uuid)
     public_user_id: str
     description: str
     credit: int
     debit: int
-    created_at: datetime = field(default_factory=generate_utc_dt)
+    created_at: datetime = Field(default_factory=generate_utc_dt)

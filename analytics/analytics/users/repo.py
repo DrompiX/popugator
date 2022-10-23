@@ -21,7 +21,7 @@ class UserRepo(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_user(self, public_id: str) -> User:
+    async def get_by_id(self, public_id: str) -> User:
         raise NotImplementedError
 
     @abstractmethod
@@ -39,7 +39,7 @@ class FakeUserRepo(UserRepo):
 
         self.user_store[user.public_id] = user
 
-    async def get_user(self, public_id: str) -> User:
+    async def get_by_id(self, public_id: str) -> User:
         if public_id not in self.user_store:
             raise UserNotFound(public_id)
 

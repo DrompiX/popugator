@@ -30,7 +30,9 @@ async def perform_reset(uow: AccountingUoW, accounting_be: MBProducer) -> None:
             )
             continue
 
-        payout = TransactionLogRecord(user.public_id, 'Daily payout', debit=0, credit=balance)
+        payout = TransactionLogRecord(
+            public_user_id=user.public_id, description='Daily payout', debit=0, credit=balance
+        )
         await uow.transactions.add(payout)
 
         payment_event = TransactionApplied(

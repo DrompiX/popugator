@@ -55,8 +55,37 @@ CREATE TABLE tasks (
 
 CREATE TABLE transactions (
     id                 SERIAL PRIMARY KEY,
-    public_user_id     TEXT NOT NULL UNIQUE,
+    public_id          TEXT NOT NULL UNIQUE,
+    public_user_id     TEXT NOT NULL,
     description        TEXT NOT NULL,
+    credit             INTEGER NOT NULL,
+    debit              INTEGER NOT NULL,
+    created_at         TIMESTAMP
+);
+
+\c analytics;
+
+CREATE TYPE TASK_STATUS AS ENUM ('open', 'done');
+
+CREATE TABLE users (
+    id            SERIAL PRIMARY KEY,
+    public_id     TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE tasks (
+    id            SERIAL PRIMARY KEY,
+    public_id     TEXT NOT NULL UNIQUE,
+    jira_id       TEXT,
+    description   TEXT NOT NULL,
+    status        TASK_STATUS,
+    fee           INTEGER,
+    profit        INTEGER
+);
+
+CREATE TABLE transactions (
+    id                 SERIAL PRIMARY KEY,
+    public_id          TEXT NOT NULL UNIQUE,
+    public_user_id     TEXT NOT NULL,
     credit             INTEGER NOT NULL,
     debit              INTEGER NOT NULL,
     created_at         TIMESTAMP

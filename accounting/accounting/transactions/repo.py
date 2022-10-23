@@ -10,7 +10,7 @@ class TransactionRepo(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_by_user(self, public_id: str) -> list[TransactionLogRecord]:
+    async def get_by_user_id(self, public_id: str) -> list[TransactionLogRecord]:
         raise NotImplementedError
 
     @abstractmethod
@@ -29,7 +29,7 @@ class FakeTransactionRepo(TransactionRepo):
     async def add(self, record: TransactionLogRecord) -> None:
         self.transactions.append(record)
 
-    async def get_by_user(self, public_id: str) -> list[TransactionLogRecord]:
+    async def get_by_user_id(self, public_id: str) -> list[TransactionLogRecord]:
         records: list[TransactionLogRecord] = []
         for transaction in self.transactions:
             if transaction.public_user_id == public_id:

@@ -4,7 +4,7 @@ from kafka import KafkaConsumer
 from loguru import logger
 
 from analytics.db.uow import FakeUoW, AnalyticsUoW
-from analytics.tasks.models import Task
+from analytics.tasks.models import Task, TaskStatus
 from analytics.users.models import User
 from common.events.business import transactions as trans_be
 from common.events.cud import users as users_cud, tasks as tasks_cud
@@ -24,6 +24,7 @@ async def handle_task_created(uow: AnalyticsUoW, event: tasks_cud.TaskCreated) -
         public_id=event.data['public_id'],
         description=event.data['description'],
         jira_id=event.data['jira_id'],
+        status=TaskStatus(event.data['status']),
     )
     async with uow:
         await uow.tasks.create(new_task)
