@@ -1,4 +1,6 @@
+from datetime import datetime
 from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -18,3 +20,4 @@ class Task(BaseModel):
     status: TaskStatus
     fee: int = 0  # init as 0 if CUD event did not contain money info
     profit: int = 0  # init as 0 if CUD event did not contain money info
+    completed_at: Optional[datetime] = None

@@ -13,12 +13,12 @@ class PostgresTransactionRepo(TransactionRepo):
 
     async def add(self, record: TransactionLogRecord) -> None:
         query = '''
-            INSERT INTO transactions(public_id, public_user_id, description, credit, debit, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO transactions(public_id, public_user_id, description, credit, debit, created_at, type)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (public_id) DO NOTHING
         '''
         r = record
-        args = (r.public_id, r.public_user_id, r.description, r.credit, r.debit, r.created_at)
+        args = (r.public_id, r.public_user_id, r.description, r.credit, r.debit, r.created_at, r.type)
         await self._conn.execute(query, *args)
 
     async def get_by_user_id(self, public_id: str) -> list[TransactionLogRecord]:

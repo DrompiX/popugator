@@ -45,6 +45,7 @@ async def handle_task_added(
         await uow.tasks.create(new_task)
         transaction = TransactionLogRecord(
             public_user_id=event.data['assignee_id'],
+            type=TransactionType.WITHDRAWAL,
             description=f'Deduct assignment fee for task - {new_task.get_full_name()}',
             debit=0,
             credit=new_task.fee,
@@ -76,7 +77,7 @@ async def handle_task_added(
         data={
             'public_id': transaction.public_id,
             'public_user_id': event.data['assignee_id'],
-            'type': TransactionType.WITHDRAWAL,
+            'type': transaction.type,
             'debit': transaction.debit,
             'credit': transaction.credit,
             'applied_at': transaction.created_at,
@@ -90,6 +91,7 @@ async def handle_task_assigned(uow: AccountingUoW, produce: MBProducer, event: t
         task = await uow.tasks.get_by_id(event.data['public_id'])
         transaction = TransactionLogRecord(
             public_user_id=event.data['assignee_id'],
+            type=TransactionType.WITHDRAWAL,
             description=f'Deduct assignment fee for task - {task.get_full_name()}',
             debit=0,
             credit=task.fee,
@@ -105,7 +107,7 @@ async def handle_task_assigned(uow: AccountingUoW, produce: MBProducer, event: t
         data={
             'public_id': transaction.public_id,
             'public_user_id': event.data['assignee_id'],
-            'type': TransactionType.WITHDRAWAL,
+            'type': transaction.type,
             'debit': transaction.debit,
             'credit': transaction.credit,
             'applied_at': transaction.created_at,
@@ -119,6 +121,7 @@ async def handle_task_completed(uow: AccountingUoW, produce: MBProducer, event: 
         task = await uow.tasks.get_by_id(event.data['public_id'])
         transaction = TransactionLogRecord(
             public_user_id=event.data['assignee_id'],
+            type=TransactionType.DEPOSIT,
             description=f'Add completion profit for task {task.get_full_name()}',
             debit=task.profit,
             credit=0,
@@ -133,8 +136,8 @@ async def handle_task_completed(uow: AccountingUoW, produce: MBProducer, event: 
         version=1,
         data={
             'public_id': transaction.public_id,
-            'public_user_id': event.data['assignee_id'],
-            'type': TransactionType.PROFIT,
+            'public_user_id': transaction.public_user_id,
+            'type': transaction.type,
             'debit': transaction.debit,
             'credit': transaction.credit,
             'applied_at': transaction.created_at,

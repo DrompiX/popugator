@@ -6,7 +6,7 @@ from common.events.base import Event, EventData
 
 
 class TransactionType(str, Enum):
-    PROFIT = 'profit'
+    DEPOSIT = 'deposit'
     WITHDRAWAL = 'withdrawal'
     PAYMENT = 'payment'
 

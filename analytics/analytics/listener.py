@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from functools import partial
 
 import asyncpg
@@ -38,11 +39,13 @@ async def handle_task_created(uow: AnalyticsUoW, event: tasks_cud.TaskCreated) -
 
 
 async def handle_task_updated(uow: AnalyticsUoW, event: tasks_cud.TaskUpdated) -> None:
+    new_status = TaskStatus(event.data['status'])
     task_upd = Task(
         public_id=event.data['public_id'],
         description=event.data['description'],
         jira_id=event.data['jira_id'],
-        status=TaskStatus(event.data['status']),
+        status=new_status,
+        completed_at=datetime.fromtimestamp(event.created_at) if new_status == TaskStatus.DONE else None,
     )
     async with uow:
         try:
@@ -60,13 +63,15 @@ async def handle_task_updated(uow: AnalyticsUoW, event: tasks_cud.TaskUpdated) -
 
 
 async def handle_task_updated_prices(uow: AnalyticsUoW, event: tasks_cud.TaskUpdatedPrices) -> None:
+    new_status = TaskStatus(event.data['status'])
     task_upd = Task(
         public_id=event.data['public_id'],
         description=event.data['description'],
         jira_id=event.data['jira_id'],
-        status=TaskStatus(event.data['status']),
+        status=new_status,
         fee=event.data['fee'],
         profit=event.data['profit'],
+        completed_at=datetime.fromtimestamp(event.created_at) if new_status == TaskStatus.DONE else None,
     )
     async with uow:
         await uow.tasks.update(task_upd)
@@ -79,6 +84,7 @@ async def handle_transaction_applied(uow: AnalyticsUoW, event: trans_be.Transact
     transaction = TransactionLogRecord(
         public_id=event.data['public_id'],
         public_user_id=event.data['public_user_id'],
+        type=event.data['type'],
         credit=event.data['credit'],
         debit=event.data['debit'],
         created_at=event.data['applied_at'],

@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from datetime import date
+from typing import Optional
 
 from analytics.tasks.models import Task
 
@@ -22,6 +24,10 @@ class TaskRepo(ABC):
     async def get_by_id(self, task_id: str) -> Task:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_most_expensive(self, start: date, end: date) -> Optional[Task]:
+        raise NotImplementedError
+
 
 class FakeTaskRepo(TaskRepo):
     def __init__(self) -> None:
@@ -39,3 +45,6 @@ class FakeTaskRepo(TaskRepo):
             raise TaskNotFound(task_id)
 
         return self.task_store[task_id]
+
+    async def get_most_expensive(self, start: date, end: date) -> Optional[Task]:
+        raise NotImplementedError

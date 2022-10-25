@@ -38,6 +38,7 @@ CREATE TABLE tasks (
 \c accounting;
 
 CREATE TYPE SYSTEM_ROLE AS ENUM ('admin', 'manager', 'accountant', 'worker');
+CREATE TYPE TRANSACTION_TYPE AS ENUM ('deposit', 'withdrawal', 'payment');
 
 CREATE TABLE users (
     id            SERIAL PRIMARY KEY,
@@ -59,6 +60,7 @@ CREATE TABLE transactions (
     public_id          TEXT NOT NULL UNIQUE,
     public_user_id     TEXT NOT NULL,
     description        TEXT NOT NULL,
+    type               TRANSACTION_TYPE,
     credit             INTEGER NOT NULL,
     debit              INTEGER NOT NULL,
     created_at         TIMESTAMP
@@ -68,6 +70,7 @@ CREATE TABLE transactions (
 
 CREATE TYPE SYSTEM_ROLE AS ENUM ('admin', 'manager', 'accountant', 'worker');
 CREATE TYPE TASK_STATUS AS ENUM ('open', 'done');
+CREATE TYPE TRANSACTION_TYPE AS ENUM ('deposit', 'withdrawal', 'payment');
 
 CREATE TABLE users (
     id            SERIAL PRIMARY KEY,
@@ -82,13 +85,15 @@ CREATE TABLE tasks (
     description   TEXT NOT NULL,
     status        TASK_STATUS,
     fee           INTEGER,
-    profit        INTEGER
+    profit        INTEGER,
+    completed_at  TIMESTAMP DEFAULT NULL
 );
 
 CREATE TABLE transactions (
     id                 SERIAL PRIMARY KEY,
     public_id          TEXT NOT NULL UNIQUE,
     public_user_id     TEXT NOT NULL,
+    type               TRANSACTION_TYPE,
     credit             INTEGER NOT NULL,
     debit              INTEGER NOT NULL,
     created_at         TIMESTAMP

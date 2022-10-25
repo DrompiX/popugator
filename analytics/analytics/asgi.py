@@ -1,10 +1,11 @@
 import sys
+from threading import Thread
 from typing import Any
 
 import asyncpg
 from fastapi import FastAPI
-from kafka import KafkaConsumer
 from loguru import logger
+from analytics import listener
 
 from analytics.db.uow import PgAnalyticsUoW
 from analytics.api.router import router
@@ -18,15 +19,17 @@ def preconfigure(app: FastAPI) -> Any:
         logger.info('Configuring service...')
         pool: asyncpg.Pool | None = await asyncpg.create_pool(
             dsn='postgres://postgres:password12345@localhost:5432',
-            database='accounting',
+            database='analytics',
         )
         if pool is None:
             raise ValueError('Connection to database failed, could not start service')
 
         app.state.uow = PgAnalyticsUoW(pool)
-        # initialize event consuming part
-        topics = {'user-streaming', 'task-streaming'}
-        _consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'])
+
+        # Start event consumer
+        app.state.listener = Thread(target=listener.start_poller, daemon=True)
+        app.state.listener.start()
+
         logger.info('Done with configuration')
 
     return async_launch

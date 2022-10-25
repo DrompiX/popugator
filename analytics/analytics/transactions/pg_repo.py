@@ -13,23 +13,13 @@ class PostgresTransactionRepo(TransactionRepo):
 
     async def add(self, record: TransactionLogRecord) -> None:
         query = '''
-            INSERT INTO transactions(public_id, public_user_id, credit, debit, created_at)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO transactions(public_id, public_user_id, credit, debit, created_at, type)
+            VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (public_id) DO NOTHING
         '''
         r = record
-        args = (r.public_id, r.public_user_id, r.credit, r.debit, r.created_at)
+        args = (r.public_id, r.public_user_id, r.credit, r.debit, r.created_at, r.type)
         await self._conn.execute(query, *args)
-
-    async def get_by_user_id(self, public_id: str) -> list[TransactionLogRecord]:
-        query = 'SELECT * FROM transactions WHERE public_user_id = $1 ORDER BY created_at ASC'
-        rows: list[dict[str, Any]] = await self._conn.fetch(query, public_id)
-        return [TransactionLogRecord.parse_obj(r) for r in rows]
-
-    async def get_all_by_date(self, d: date) -> list[TransactionLogRecord]:
-        query = 'SELECT * FROM transactions WHERE date(created_at) = $1 ORDER BY created_at ASC'
-        rows: list[dict[str, Any]] = await self._conn.fetch(query, d)
-        return [TransactionLogRecord.parse_obj(r) for r in rows]
 
     async def get_balance_by_user(self, d: date) -> dict[str, int]:
         query = '''
@@ -40,3 +30,13 @@ class PostgresTransactionRepo(TransactionRepo):
         '''
         rows: list[dict[str, Any]] = await self._conn.fetch(query, d)
         return {r['public_user_id']: r['balance'] for r in rows}
+
+    async def get_management_income(self, start: date, end: date) -> int:
+        query = '''
+            SELECT sum(credit) - sum(debit)
+            FROM transactions
+            WHERE date(created_at) BETWEEN SYMMETRIC $1 AND $2
+            AND type in ('deposit', 'withdrawal')
+        '''
+        result: int | None = await self._conn.fetchval(query, start, end)
+        return result if result is not None else 0

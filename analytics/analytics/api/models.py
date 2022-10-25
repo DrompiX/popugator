@@ -16,6 +16,7 @@ class CumulativeAnalytics(BaseModel):
 
 
 class TopTaskInfo(BaseModel):
-    date: date
+    start_date: date
+    end_date: date
     desctiption: str
     price: int

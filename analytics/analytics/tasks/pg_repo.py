@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any, Optional
 
 from asyncpg.connection import Connection
@@ -21,10 +22,10 @@ class PostgresTaskRepo(TaskRepo):
 
     async def update(self, task: Task) -> None:
         query = '''
-            UPDATE tasks SET (description, status, fee, profit) = ($2, $3, $4, $5)
+            UPDATE tasks SET (description, status, fee, profit, completed_at) = ($2, $3, $4, $5, $6)
             WHERE public_id = $1
         '''
-        args = (task.public_id, task.description, task.status, task.fee, task.profit)
+        args = (task.public_id, task.description, task.status, task.fee, task.profit, task.completed_at)
         await self._conn.execute(query, *args)
 
     async def get_by_id(self, task_id: str) -> Task:
@@ -35,7 +36,13 @@ class PostgresTaskRepo(TaskRepo):
 
         return Task.parse_obj(row)
 
-    async def get_all_open(self) -> list[Task]:
-        query = 'SELECT * FROM tasks WHERE status = $1'
-        rows: list[dict[str, Any]] = await self._conn.fetch(query, TaskStatus.OPEN)
-        return [Task.parse_obj(r) for r in rows]
+    async def get_most_expensive(self, start: date, end: date) -> Optional[Task]:
+        query = '''
+            SELECT *
+            FROM tasks
+            WHERE date(completed_at) BETWEEN SYMMETRIC $1 AND $2
+            AND status = $3
+            ORDER BY profit DESC
+        '''
+        result: dict[str, Any] | None = await self._conn.fetchrow(query, start, end, TaskStatus.DONE)
+        return Task.parse_obj(result) if result else None
