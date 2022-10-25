@@ -1,9 +1,9 @@
 import asyncio
 from datetime import datetime
 from functools import partial
+import os
 
 import asyncpg
-from kafka import KafkaConsumer
 from loguru import logger
 
 from analytics.db.uow import AnalyticsUoW, PgAnalyticsUoW
@@ -13,7 +13,7 @@ from analytics.transactions.models import TransactionLogRecord
 from analytics.users.models import SystemRole, User
 from common.events.business import transactions as trans_be
 from common.events.cud import users as users_cud, tasks as tasks_cud
-from common.message_bus.kafka_consumer import EventSpec, HandlerRegistry, HandlerSpec, run_consumer
+from common.message_bus.kafka_consumer import EventSpec, HandlerRegistry, HandlerSpec, get_kafka_consumer, run_consumer
 
 
 async def handle_user_created(uow: AnalyticsUoW, event: users_cud.UserCreated) -> None:
@@ -122,8 +122,9 @@ def init_handler_registry(uow: AnalyticsUoW) -> HandlerRegistry:
 
 
 async def poll_events() -> None:
+    host = os.getenv('POSTGRES_HOST', 'localhost')
     pool: asyncpg.Pool | None = await asyncpg.create_pool(
-        dsn='postgres://postgres:password12345@localhost:5432',
+        dsn=f'postgres://postgres:password12345@{host}:5432',
         database='analytics',
     )
     if pool is None:
@@ -132,7 +133,9 @@ async def poll_events() -> None:
     topics = {'user-streaming', 'task-streaming', 'accounting'}
 
     uow = PgAnalyticsUoW(pool)
-    consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'], group_id='analytics')
+
+    kafka_srv = os.getenv('KAFKA_ADDR', 'localhost:29092')
+    consumer = get_kafka_consumer(topics, servers=[kafka_srv], group_id='analytics')
     handlers = init_handler_registry(uow)
 
     logger.info('Start listening for events on topics {}', topics)

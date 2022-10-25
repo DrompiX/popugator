@@ -1,14 +1,14 @@
 import asyncio
 from functools import partial
+import os
 
 import asyncpg
-from kafka import KafkaConsumer
 from loguru import logger
 
 from common.events.cud.users import UserCreated
 from taskman.db.uow import PgTaskmanUoW, TaskmanUoW
 from taskman.users.models import SystemRole, User
-from common.message_bus.kafka_consumer import EventSpec, HandlerRegistry, HandlerSpec, run_consumer
+from common.message_bus.kafka_consumer import EventSpec, HandlerRegistry, HandlerSpec, get_kafka_consumer, run_consumer
 
 
 async def handle_user_created(uow: TaskmanUoW, event: UserCreated) -> None:
@@ -24,17 +24,20 @@ async def handle_user_created(uow: TaskmanUoW, event: UserCreated) -> None:
 
 
 async def poll_events() -> None:
+    host = os.getenv('POSTGRES_HOST', 'localhost')
     pool: asyncpg.Pool | None = await asyncpg.create_pool(
-        dsn='postgres://postgres:password12345@localhost:5432',
+        dsn=f'postgres://postgres:password12345@{host}:5432',
         database='taskman',
     )
     if pool is None:
         raise ValueError('Connection to database failed, could not start service')
 
     uow = PgTaskmanUoW(pool)
-    topics = {'user-streaming'}
 
-    consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'], group_id='taskman')
+    topics = {'user-streaming'}
+    kafka_srv = os.getenv('KAFKA_ADDR', 'localhost:29092')
+    consumer = get_kafka_consumer(topics, servers=[kafka_srv], group_id='taskman')
+
     handlers: HandlerRegistry = {
         EventSpec(name='UserCreated', version=1, domain='users'): HandlerSpec(
             model=UserCreated,

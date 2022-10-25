@@ -1,3 +1,4 @@
+import os
 import sys
 from threading import Thread
 from typing import Any
@@ -17,8 +18,9 @@ logger.add(sink=sys.stdout, level='INFO', backtrace=False, colorize=True, diagno
 def preconfigure(app: FastAPI) -> Any:
     async def async_launch():
         logger.info('Configuring service...')
+        host = os.getenv('POSTGRES_HOST', 'localhost')
         pool: asyncpg.Pool | None = await asyncpg.create_pool(
-            dsn='postgres://postgres:password12345@localhost:5432',
+            dsn=f'postgres://postgres:password12345@{host}:5432',
             database='accounting',
         )
         if pool is None:

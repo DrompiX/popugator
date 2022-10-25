@@ -1,9 +1,9 @@
 import asyncio
 from functools import partial
+import os
 import random
 
 import asyncpg
-from kafka import KafkaConsumer, KafkaProducer
 from loguru import logger
 
 from accounting.transactions.models import TransactionLogRecord
@@ -14,8 +14,8 @@ from common.events.business import tasks as tasks_be
 from common.events.business.transactions import TransactionApplied, TransactionType
 from common.events.cud import users as users_cud
 from common.events.cud.tasks import TaskUpdatedPrices
-from common.message_bus.kafka_consumer import EventSpec, HandlerRegistry, HandlerSpec, run_consumer
-from common.message_bus.kafka_producer import make_mb_producer
+from common.message_bus.kafka_consumer import EventSpec, HandlerRegistry, HandlerSpec, get_kafka_consumer, run_consumer
+from common.message_bus.kafka_producer import get_kafka_producer, make_mb_producer
 from common.message_bus.protocols import MBProducer
 
 
@@ -181,8 +181,9 @@ def init_handler_registry(uow: AccountingUoW, accounting_be: MBProducer, tasks_c
 
 
 async def poll_events() -> None:
+    host = os.getenv('POSTGRES_HOST', 'localhost')
     pool: asyncpg.Pool | None = await asyncpg.create_pool(
-        dsn='postgres://postgres:password12345@localhost:5432',
+        dsn=f'postgres://postgres:password12345@{host}:5432',
         database='accounting',
     )
     if pool is None:
@@ -191,10 +192,13 @@ async def poll_events() -> None:
     topics = {'user-streaming', 'task-streaming', 'task-lifecycle', 'accounting'}
 
     uow = PgAccountingUoW(pool)
-    consumer = KafkaConsumer(*topics, bootstrap_servers=['localhost:9095'], group_id='accounting')
-    producer = KafkaProducer(bootstrap_servers=['localhost:9095'], linger_ms=2)
-    accounting_be = make_mb_producer(producer, topic='accounting', sync=True)
-    tasks_cud = make_mb_producer(producer, topic='task-streaming', sync=True)
+
+    kafka_srv = os.getenv('KAFKA_ADDR', 'localhost:29092')
+    consumer = get_kafka_consumer(topics, servers=[kafka_srv], group_id='accounting')
+    kafka_producer = get_kafka_producer([kafka_srv], linger_ms=2)
+
+    accounting_be = make_mb_producer(kafka_producer, topic='accounting', sync=True)
+    tasks_cud = make_mb_producer(kafka_producer, topic='task-streaming', sync=True)
     handlers = init_handler_registry(uow, accounting_be, tasks_cud)
 
     logger.info('Start listening for events on topics {}', topics)

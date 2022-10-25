@@ -15,7 +15,7 @@ RUN pipenv install --deploy --clear --system --ignore-pipfile;
 WORKDIR /app
 
 COPY common common
-COPY gateway/docker-entrypoint.sh .
-COPY gateway/app gateway/app
+COPY taskman/docker-entrypoint.sh .
+COPY taskman/taskman taskman
 
 ENTRYPOINT [ "/app/docker-entrypoint.sh" ]

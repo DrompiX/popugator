@@ -8,6 +8,7 @@ from loguru import logger
 
 from common.events.base import Event
 from common.message_bus.protocols import EventHandler
+from common.utils import retry
 
 
 class HandlerNotFound(Exception):
@@ -28,6 +29,19 @@ class HandlerSpec:
 
 
 HandlerRegistry = dict[EventSpec, HandlerSpec]
+
+
+def get_kafka_consumer(
+    topics: set[str],
+    servers: list[str],
+    group_id: str,
+    **kwargs: Any,
+) -> KafkaConsumer:
+    def _inner() -> KafkaConsumer:
+        return KafkaConsumer(*topics, bootstrap_servers=servers, group_id=group_id, **kwargs)
+
+    logger.info('Connecting consumer (topics={}) to kafka servers {}', servers, topics)
+    return retry(_inner, retries=5, interval=2)
 
 
 async def run_consumer(consumer: KafkaConsumer, handlers: HandlerRegistry) -> None:
