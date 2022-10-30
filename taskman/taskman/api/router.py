@@ -23,7 +23,7 @@ router = APIRouter(
 @handle_general_exc
 async def add_task(r: Request, data: AddTaskRequest) -> AddTaskResponse:
     tasks_cud, tasks_be = r.app.state.tasks_cud, r.app.state.tasks_be
-    unassigned = UnassignedTask(description=data.description)
+    unassigned = UnassignedTask(jira_id=data.jira_id, description=data.description)
     new_task = await services.add_task(r.app.state.uow, tasks_cud, tasks_be, unassigned)
     return AddTaskResponse(public_task_id=new_task.public_id)
 

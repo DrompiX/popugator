@@ -15,6 +15,7 @@ CREATE TABLE users (
 \c taskman;
 
 CREATE TYPE SYSTEM_ROLE AS ENUM ('admin', 'manager', 'accountant', 'worker');
+CREATE TYPE TASK_STATUS AS ENUM ('open', 'done');
 
 CREATE TABLE users (
     id            SERIAL PRIMARY KEY,
@@ -23,14 +24,40 @@ CREATE TABLE users (
     role          SYSTEM_ROLE
 );
 
-CREATE TYPE TASK_STATUS AS ENUM ('open', 'done');
-
 CREATE TABLE tasks (
     id            SERIAL PRIMARY KEY,
     public_id     TEXT NOT NULL UNIQUE,
     assignee_id   TEXT NOT NULL,
+    jira_id       TEXT,
     description   TEXT NOT NULL,
     status        TASK_STATUS
+);
+
+\c accounting;
+
+CREATE TYPE SYSTEM_ROLE AS ENUM ('admin', 'manager', 'accountant', 'worker');
+
+CREATE TABLE users (
+    id            SERIAL PRIMARY KEY,
+    public_id     TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE tasks (
+    id            SERIAL PRIMARY KEY,
+    public_id     TEXT NOT NULL UNIQUE,
+    jira_id       TEXT,
+    description   TEXT NOT NULL,
+    fee           INTEGER NOT NULL,
+    profit        INTEGER NOT NULL
+);
+
+CREATE TABLE transactions (
+    id                 SERIAL PRIMARY KEY,
+    public_user_id     TEXT NOT NULL UNIQUE,
+    description        TEXT NOT NULL,
+    credit             INTEGER NOT NULL,
+    debit              INTEGER NOT NULL,
+    created_at         TIMESTAMP
 );
 
 ALTER ROLE postgres SET client_encoding TO 'utf8';
