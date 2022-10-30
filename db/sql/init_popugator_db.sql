@@ -1,5 +1,7 @@
 CREATE DATABASE gateway;
 CREATE DATABASE taskman;
+CREATE DATABASE accounting;
+CREATE DATABASE analytics;
 
 \c gateway;
 
@@ -36,10 +38,12 @@ CREATE TABLE tasks (
 \c accounting;
 
 CREATE TYPE SYSTEM_ROLE AS ENUM ('admin', 'manager', 'accountant', 'worker');
+CREATE TYPE TRANSACTION_TYPE AS ENUM ('deposit', 'withdrawal', 'payment');
 
 CREATE TABLE users (
     id            SERIAL PRIMARY KEY,
-    public_id     TEXT NOT NULL UNIQUE
+    public_id     TEXT NOT NULL UNIQUE,
+    role          SYSTEM_ROLE
 );
 
 CREATE TABLE tasks (
@@ -53,8 +57,43 @@ CREATE TABLE tasks (
 
 CREATE TABLE transactions (
     id                 SERIAL PRIMARY KEY,
-    public_user_id     TEXT NOT NULL UNIQUE,
+    public_id          TEXT NOT NULL UNIQUE,
+    public_user_id     TEXT NOT NULL,
     description        TEXT NOT NULL,
+    type               TRANSACTION_TYPE,
+    credit             INTEGER NOT NULL,
+    debit              INTEGER NOT NULL,
+    created_at         TIMESTAMP
+);
+
+\c analytics;
+
+CREATE TYPE SYSTEM_ROLE AS ENUM ('admin', 'manager', 'accountant', 'worker');
+CREATE TYPE TASK_STATUS AS ENUM ('open', 'done');
+CREATE TYPE TRANSACTION_TYPE AS ENUM ('deposit', 'withdrawal', 'payment');
+
+CREATE TABLE users (
+    id            SERIAL PRIMARY KEY,
+    public_id     TEXT NOT NULL UNIQUE,
+    role          SYSTEM_ROLE
+);
+
+CREATE TABLE tasks (
+    id            SERIAL PRIMARY KEY,
+    public_id     TEXT NOT NULL UNIQUE,
+    jira_id       TEXT,
+    description   TEXT NOT NULL,
+    status        TASK_STATUS,
+    fee           INTEGER,
+    profit        INTEGER,
+    completed_at  TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE transactions (
+    id                 SERIAL PRIMARY KEY,
+    public_id          TEXT NOT NULL UNIQUE,
+    public_user_id     TEXT NOT NULL,
+    type               TRANSACTION_TYPE,
     credit             INTEGER NOT NULL,
     debit              INTEGER NOT NULL,
     created_at         TIMESTAMP
@@ -66,5 +105,7 @@ ALTER ROLE postgres SET timezone TO 'UTC';
 
 GRANT ALL PRIVILEGES ON DATABASE gateway TO postgres;
 GRANT ALL PRIVILEGES ON DATABASE taskman TO postgres;
+GRANT ALL PRIVILEGES ON DATABASE accounting TO postgres;
+GRANT ALL PRIVILEGES ON DATABASE analytics TO postgres;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres;

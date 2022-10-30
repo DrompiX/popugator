@@ -1,14 +1,14 @@
-import asyncio
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from typing import Any, Type, cast
+
 from kafka import KafkaConsumer
 from kafka.consumer.fetcher import ConsumerRecord
 from loguru import logger
-from pydantic import BaseModel
 
 from common.events.base import Event
 from common.message_bus.protocols import EventHandler
+from common.utils import retry
 
 
 class HandlerNotFound(Exception):
@@ -18,21 +18,33 @@ class HandlerNotFound(Exception):
 @dataclass(frozen=True)
 class EventSpec:
     name: str
+    domain: str
     version: int
 
 
 @dataclass(frozen=True)
 class HandlerSpec:
-    model: Type[BaseModel]
+    model: Type[Event]
     handler: EventHandler
 
 
 HandlerRegistry = dict[EventSpec, HandlerSpec]
 
 
-def run_consumer(consumer: KafkaConsumer, handlers: HandlerRegistry) -> None:
-    loop = asyncio.new_event_loop()
+def get_kafka_consumer(
+    topics: set[str],
+    servers: list[str],
+    group_id: str,
+    **kwargs: Any,
+) -> KafkaConsumer:
+    def _inner() -> KafkaConsumer:
+        return KafkaConsumer(*topics, bootstrap_servers=servers, group_id=group_id, **kwargs)
 
+    logger.info('Connecting consumer (topics={}) to kafka servers {}', servers, topics)
+    return retry(_inner, retries=5, interval=2)
+
+
+async def run_consumer(consumer: KafkaConsumer, handlers: HandlerRegistry) -> None:
     msg: ConsumerRecord
     for msg in consumer:
         try:
@@ -42,22 +54,27 @@ def run_consumer(consumer: KafkaConsumer, handlers: HandlerRegistry) -> None:
             continue
 
         try:
-            process_event(json_event, handlers, loop)
+            await process_event(json_event, handlers)
+            logger.info('Consumed from topic {} message {}', msg.topic, json_event)
         except HandlerNotFound as err:
             logger.warning('Consumer could not handle valid event: {}', err)
         except Exception as err:
             logger.exception('Failed to process event({}): {}', json_event, err)
 
 
-def process_event(
+async def process_event(
     json_event: dict[str, Any],
     handlers: HandlerRegistry,
-    loop: asyncio.AbstractEventLoop,
 ) -> None:
-    parsed_event = Event.parse_obj(json_event)
-    handler_spec = handlers.get(EventSpec(parsed_event.name, parsed_event.version))
+    match json_event:
+        case {'name': name, 'domain': domain, 'version': version}:
+            event_spec = EventSpec(name, domain, version)
+        case _:
+            raise ValueError('Event does not contain meta info with name, domain, version or data')
+
+    handler_spec = handlers.get(event_spec)
     if handler_spec is None:
         raise HandlerNotFound(f'No handler for event {json_event}')
 
-    event_data = handler_spec.model.parse_obj(json_event['data'])
-    loop.run_until_complete(handler_spec.handler(event_data))
+    event_data = handler_spec.model.parse_obj(json_event)
+    await handler_spec.handler(event_data)

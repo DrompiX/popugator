@@ -5,6 +5,7 @@ from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 from pydantic import BaseModel
 
 from loguru import logger
+from taskman.db.uow import TaskmanUoW
 
 from taskman.users.models import SystemRole
 from taskman.users.repo import UserNotFound
@@ -29,8 +30,10 @@ def authorize(allowed: set[SystemRole]) -> Callable[[Request], Awaitable[None]]:
         if auth_info.user_role not in allowed:
             raise HTTPException(status_code=HTTP_403_FORBIDDEN)
 
+        uow: TaskmanUoW = r.app.state.uow
         try:
-            db_user = await r.app.state.uow.users.get_user(auth_info.user_public_id)
+            async with uow:
+                db_user = await uow.users.get_by_id(auth_info.user_public_id)
         except UserNotFound:
             raise HTTPException(status_code=HTTP_401_UNAUTHORIZED)
 

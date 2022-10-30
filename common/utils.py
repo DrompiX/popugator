@@ -1,5 +1,6 @@
 from datetime import datetime
 from functools import wraps
+import time
 from typing import Any, Callable, Coroutine
 from uuid import uuid4
 
@@ -37,3 +38,22 @@ def handle_general_exc(func: Callable[..., Any]) -> Callable[..., Coroutine[Any,
             )
 
     return _wrapped
+
+
+def retry(func: Callable[[], Any], retries: int = 5, interval: int = 2) -> Any:
+    error: Exception | None = None
+    attempt = 1
+
+    while attempt <= retries:
+        try:
+            result = func()
+            logger.info('Attempt {} succeeded', attempt)
+            return result
+        except Exception as err:
+            error = err
+            logger.info('Attempt {} failed: {}', attempt, err)
+
+        attempt += 1
+        time.sleep(interval)
+
+    raise ValueError('Failed to connect producer to kafka') from error

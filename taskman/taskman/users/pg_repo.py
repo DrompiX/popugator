@@ -2,8 +2,8 @@ from typing import Any, Optional
 from asyncpg.connection import Connection
 from asyncpg.exceptions import UniqueViolationError
 
-from gateway.users.models import User
-from gateway.users.repo import UserAlreadyExists, UserNotFound, UserRepo
+from taskman.users.models import User
+from taskman.users.repo import UserAlreadyExists, UserNotFound, UserRepo
 
 
 class PostgresUserRepo(UserRepo):
@@ -18,12 +18,17 @@ class PostgresUserRepo(UserRepo):
         try:
             await self._conn.execute(query, user.username, user.public_id, user.role)
         except UniqueViolationError:
-            raise UserAlreadyExists(user.username)
+            raise UserAlreadyExists(user.username) from None
 
-    async def get_by_username(self, username: str) -> User:
-        query = 'SELECT * FROM users WHERE username = $1'
-        row: Optional[dict[str, Any]] = await self._conn.fetchrow(query, username)
+    async def get_by_id(self, public_id: str) -> User:
+        query = 'SELECT * FROM users WHERE public_id = $1'
+        row: Optional[dict[str, Any]] = await self._conn.fetchrow(query, public_id)
         if row is None:
-            raise UserNotFound(username)
+            raise UserNotFound(public_id)
 
         return User.parse_obj(row)
+
+    async def get_all(self) -> list[User]:
+        query = 'SELECT * FROM users'
+        rows: list[dict[str, Any]] = await self._conn.fetch(query)
+        return [User.parse_obj(r) for r in rows]

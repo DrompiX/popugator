@@ -12,7 +12,9 @@ router = APIRouter()
 
 # TODO: move to external configuration
 redirect_config = {
-    'tasks': 'localhost:8080/test',
+    'tasks': 'taskman:8080/tasks',
+    'accounts': 'accounting:8080/accounts',
+    'analytics': 'analytics:8080/analytics',
 }
 
 
@@ -60,5 +62,5 @@ def make_proxy_path(resource: str, path: Optional[str]) -> str:
     if redirect_to is None:
         raise HTTPException(status_code=404, detail=f'Redirect for resource {resource} not found')
 
-    resourse_path = path.lstrip('/').rstrip('/') if path else ''
-    return f'http://{redirect_to}/{resourse_path}'
+    resourse_path = '/' + path.lstrip('/').rstrip('/') if path else ''
+    return f'http://{redirect_to}{resourse_path}'
