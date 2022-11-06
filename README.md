@@ -1,4 +1,5 @@
 # Task tracker for Popugs
+This repository was created as a homework solution for [course in Async Architecture](https://education.borshev.com/architecture)
 
 
 ## Design
